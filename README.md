@@ -101,4 +101,4 @@ Spring Boot와 JPA를 활용하여 실무형 게시판 서비스를 구현한다
 ---
 
 ## 프로젝트 문서
-- 도메인 모델 상세: docs/domain-model.md
+- [도메인 모델 상세](./docs/domain-model.md)
