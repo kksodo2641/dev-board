@@ -1,4 +1,4 @@
-# ERD
+# Database Design
 
 ## 개요
 
@@ -8,35 +8,37 @@
 
 ---
 
-## MEMBER
+## 핵심 엔티티
 
-### 설명
+### 1. MEMBER
+
+#### 설명
 
 **회원 정보**를 저장하는 테이블
 
-### 컬럼 및 제약조건
+#### 컬럼 및 제약조건
 
-| 컬럼명        | 타입           | 제약조건                                                                             | 설명                   |
-|------------|--------------|----------------------------------------------------------------------------------|----------------------|
-| member_id  | BIGINT       | PK (auto_increment)                                                              | 회원 ID                |
-| email      | VARCHAR(255) | NOT NULL, UNIQUE                                                                 | 이메일, 로그인 ID로 사용      |
-| password   | VARCHAR(255) | NOT NULL                                                                         | 비밀번호, BCrypt 해시로 암호화 |
-| nickname   | VARCHAR(30)  | NOT NULL, UNIQUE                                                                 | 닉네임                  |
-| gender     | VARCHAR(10)  | NOT NULL, <br/> CHECK(gender IN ('MALE', 'FEMALE', 'NONE')),<br/> DEFAULT 'NONE' | 성별                   |
-| role       | VARCHAR(10)  | NOT NULL, <br/> CHECK(role IN ('USER', 'ADMIN')),<br/> DEFAULT 'USER'            | 권한                   |
-| status     | VARCHAR(20)  | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE'    | 상태                   |
-| created_at | DATETIME     | NOT NULL                                                                         | 생성 일시                |
-| updated_at | DATETIME     | NOT NULL                                                                         | 수정 일시                |
+| 컬럼명           | 타입           | 제약조건                                                                             | 설명               |
+|---------------|--------------|----------------------------------------------------------------------------------|------------------|
+| member_id     | BIGINT       | PK (auto_increment)                                                              | 회원 ID            |
+| email         | VARCHAR(255) | NOT NULL, UNIQUE                                                                 | 이메일, 로그인 ID로 사용  |
+| password_hash | VARCHAR(255) | NOT NULL                                                                         | 비밀번호, BCrypt 해시값 |
+| nickname      | VARCHAR(30)  | NOT NULL, UNIQUE                                                                 | 닉네임              |
+| gender        | VARCHAR(10)  | NOT NULL, <br/> CHECK(gender IN ('MALE', 'FEMALE', 'NONE')),<br/> DEFAULT 'NONE' | 성별               |
+| role          | VARCHAR(10)  | NOT NULL, <br/> CHECK(role IN ('USER', 'ADMIN')),<br/> DEFAULT 'USER'            | 권한               |
+| status        | VARCHAR(20)  | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE'    | 상태               |
+| created_at    | DATETIME     | NOT NULL                                                                         | 생성 일시            |
+| updated_at    | DATETIME     | NOT NULL                                                                         | 수정 일시            |
 
 ---
 
-## BOARD
+### 2. BOARD
 
-### 설명
+#### 설명
 
 **게시글 정보**를 저장하는 테이블
 
-### 컬럼 및 제약조건
+#### 컬럼 및 제약조건
 
 | 컬럼명        | 타입           | 제약조건                                                                          | 설명        |
 |------------|--------------|-------------------------------------------------------------------------------|-----------|
@@ -52,13 +54,13 @@
 
 ---
 
-## COMMENT
+### 3. COMMENT
 
-### 설명
+#### 설명
 
 게시글 **댓글 및 대댓글 정보**를 저장하는 테이블
 
-### 컬럼 및 제약조건
+#### 컬럼 및 제약조건
 
 | 컬럼명        | 타입          | 제약조건                                                                          | 설명        |
 |------------|-------------|-------------------------------------------------------------------------------|-----------|
@@ -71,20 +73,20 @@
 | created_at | DATETIME    | NOT NULL                                                                      | 생성 일시     |
 | updated_at | DATETIME    | NOT NULL                                                                      | 수정 일시     |
 
-### 비고
+#### 비고
 
 - parent_id가 NULL이면 최상위 댓글을 의미
 - parent_id가 존재하면 대댓글을 의미
 
 ---
 
-## BOARD_LIKE
+### 4. BOARD_LIKE
 
-### 설명
+#### 설명
 
 **게시글 좋아요 정보**를 저장하는 테이블
 
-### 컬럼 및 제약조건
+#### 컬럼 및 제약조건
 
 | 컬럼명           | 타입       | 제약조건                | 설명     |
 |---------------|----------|---------------------|--------|
@@ -94,32 +96,33 @@
 | created_at    | DATETIME | NOT NULL            | 생성 일시  |
 | updated_at    | DATETIME | NOT NULL            | 수정 일시  |
 
-### Unique Constraint
+#### Unique Constraint
 
-- (member_id, board_id)
+- (board_id, member_id)
 
-### 비고
+#### 비고
 
 - 동일 회원은 동일 게시글에 딱 한 번만 좋아요를 누를 수 있다.
 
 ---
 
-## UPLOAD_FILE
+### 5. UPLOAD_FILE
 
-### 설명
+#### 설명
 
 **게시글 첨부파일 정보**를 저장하는 테이블
 
-### 컬럼 및 제약조건
+#### 컬럼 및 제약조건
 
-| 컬럼명                | 타입           | 제약조건                | 설명          |
-|--------------------|--------------|---------------------|-------------|
-| upload_file_id     | BIGINT       | PK (auto_increment) | 업로드 파일 ID   |
-| board_id           | BIGINT       | FK, NOT NULL        | 게시글 ID      |
-| original_file_name | VARCHAR(255) | NOT NULL            | 사용자 업로드 파일명 |
-| stored_file_name   | VARCHAR(255) | NOT NULL            | 서버 저장 파일명   |
-| created_at         | DATETIME     | NOT NULL            | 생성 일시       |
-| updated_at         | DATETIME     | NOT NULL            | 수정 일시       |
+| 컬럼명                | 타입           | 제약조건                | 설명           |
+|--------------------|--------------|---------------------|--------------|
+| upload_file_id     | BIGINT       | PK (auto_increment) | 업로드 파일 ID    |
+| board_id           | BIGINT       | FK, NOT NULL        | 게시글 ID       |
+| original_file_name | VARCHAR(255) | NOT NULL            | 사용자 업로드 파일명  |
+| stored_file_name   | VARCHAR(255) | NOT NULL            | 서버 저장 파일명    |
+| file_size          | BIGINT       | NOT NULL            | 파일 크기 (byte) |
+| created_at         | DATETIME     | NOT NULL            | 생성 일시        |
+| updated_at         | DATETIME     | NOT NULL            | 수정 일시        |
 
 ---
 
@@ -128,12 +131,15 @@
 ### 1. MEMBER ↔ BOARD
 
 #### Cardinality
+
 - MEMBER (1) : BOARD (N)
 
 #### 외래키 제약조건
+
 - BOARD.member_id (FK) → MEMBER.member_id (PK)
 
 #### 설명
+
 - 하나의 회원은 여러 개의 게시글을 작성할 수 있다.
 - 하나의 게시글은 반드시 하나의 회원에 의해 작성된다.
 
@@ -142,12 +148,15 @@
 ### 2. MEMBER ↔ COMMENT
 
 #### Cardinality
+
 - MEMBER (1) : COMMENT (N)
 
 #### 외래키 제약조건
+
 - COMMENT.member_id (FK) → MEMBER.member_id (PK)
 
 #### 설명
+
 - 하나의 회원은 여러 개의 댓글을 작성할 수 있다.
 - 하나의 댓글은 반드시 하나의 회원에 의해 작성된다.
 
@@ -156,12 +165,15 @@
 ### 3. BOARD ↔ COMMENT
 
 #### Cardinality
+
 - BOARD (1) : COMMENT (N)
 
 #### 외래키 제약조건
+
 - COMMENT.board_id (FK) → BOARD.board_id (PK)
 
 #### 설명
+
 - 하나의 게시글은 여러 개의 댓글을 가질 수 있다.
 - 하나의 댓글은 반드시 하나의 게시글에 속한다.
 
@@ -170,14 +182,17 @@
 ### 4. COMMENT ↔ COMMENT
 
 #### Cardinality
+
 - COMMENT (1) : COMMENT (N)
 
 #### 외래키 제약조건
+
 - COMMENT.parent_id (FK) → COMMENT.comment_id (PK) (Self Reference FK)
 
 #### 설명
+
 - 하나의 댓글은 여러 개의 대댓글을 가질 수 있다.
-- 하나의 대댓글은 반드시 하나의 부모 댓글을 가진다.
+- 하나의 대댓글은 반드시 하나의 부모 댓글에 속한다.
 - 최상위 댓글은 parent_id가 NULL이다.
 
 --- 
@@ -185,12 +200,15 @@
 ### 5. BOARD ↔ UPLOAD_FILE
 
 #### Cardinality
+
 - BOARD (1) : UPLOAD_FILE (N)
 
 #### 외래키 제약조건
+
 - UPLOAD_FILE.board_id (FK) → BOARD.board_id (PK)
 
 #### 설명
+
 - 하나의 게시글은 여러 개의 첨부파일을 가질 수 있다.
 - 하나의 첨부파일은 반드시 하나의 게시글에 속한다.
 
@@ -199,30 +217,41 @@
 ### 6. MEMBER ↔ BOARD_LIKE
 
 #### Cardinality
+
 - MEMBER (1) : BOARD_LIKE (N)
 
 #### 외래키 제약조건
+
 - BOARD_LIKE.member_id (FK) → MEMBER.member_id (PK)
 
 #### 설명
+
 - 하나의 회원은 여러 개의 게시글에 좋아요를 누를 수 있다.
-- 하나의 좋아요는 반드시 하나의 회원에 의해 생성된다.
+- 하나의 좋아요는 반드시 하나의 회원에 속한다.
 
 --- 
 
 ### 7. BOARD ↔ BOARD_LIKE
 
 #### Cardinality
+
 - BOARD (1) : BOARD_LIKE (N)
 
 #### 외래키 제약조건
+
 - BOARD_LIKE.board_id (FK) → BOARD.board_id (PK)
 
 #### 설명
+
 - 하나의 게시글은 여러 개의 좋아요를 가질 수 있다.
 - 하나의 좋아요는 반드시 하나의 게시글에 속한다.
 
 --- 
+
+## ERD Diagram
+
+
+---
 
 ## 참고
 
