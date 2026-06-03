@@ -127,13 +127,13 @@
 
 ### 1. MEMBER ↔ BOARD
 
-Cardinality
-- **MEMBER (1) : BOARD (N)**
+#### Cardinality
+- MEMBER (1) : BOARD (N)
 
-외래키 제약조건
+#### 외래키 제약조건
 - BOARD.member_id (FK) → MEMBER.member_id (PK)
 
-설명
+#### 설명
 - 하나의 회원은 여러 개의 게시글을 작성할 수 있다.
 - 하나의 게시글은 반드시 하나의 회원에 의해 작성된다.
 
@@ -141,13 +141,13 @@ Cardinality
 
 ### 2. MEMBER ↔ COMMENT
 
-Cardinality
+#### Cardinality
 - MEMBER (1) : COMMENT (N)
 
-외래키 제약조건
+#### 외래키 제약조건
 - COMMENT.member_id (FK) → MEMBER.member_id (PK)
 
-설명
+#### 설명
 - 하나의 회원은 여러 개의 댓글을 작성할 수 있다.
 - 하나의 댓글은 반드시 하나의 회원에 의해 작성된다.
 
@@ -155,13 +155,13 @@ Cardinality
 
 ### 3. BOARD ↔ COMMENT
 
-Cardinality
+#### Cardinality
 - BOARD (1) : COMMENT (N)
 
-외래키 제약조건
+#### 외래키 제약조건
 - COMMENT.board_id (FK) → BOARD.board_id (PK)
 
-설명
+#### 설명
 - 하나의 게시글은 여러 개의 댓글을 가질 수 있다.
 - 하나의 댓글은 반드시 하나의 게시글에 속한다.
 
@@ -169,13 +169,13 @@ Cardinality
 
 ### 4. COMMENT ↔ COMMENT
 
-Cardinality
+#### Cardinality
 - COMMENT (1) : COMMENT (N)
 
-외래키 제약조건
+#### 외래키 제약조건
 - COMMENT.parent_id (FK) → COMMENT.comment_id (PK) (Self Reference FK)
 
-설명
+#### 설명
 - 하나의 댓글은 여러 개의 대댓글을 가질 수 있다.
 - 하나의 대댓글은 반드시 하나의 부모 댓글을 가진다.
 - 최상위 댓글은 parent_id가 NULL이다.
@@ -184,13 +184,13 @@ Cardinality
 
 ### 5. BOARD ↔ UPLOAD_FILE
 
-Cardinality
+#### Cardinality
 - BOARD (1) : UPLOAD_FILE (N)
 
-외래키 제약조건
+#### 외래키 제약조건
 - UPLOAD_FILE.board_id (FK) → BOARD.board_id (PK)
 
-설명
+#### 설명
 - 하나의 게시글은 여러 개의 첨부파일을 가질 수 있다.
 - 하나의 첨부파일은 반드시 하나의 게시글에 속한다.
 
@@ -198,13 +198,13 @@ Cardinality
 
 ### 6. MEMBER ↔ BOARD_LIKE
 
-Cardinality
+#### Cardinality
 - MEMBER (1) : BOARD_LIKE (N)
 
-외래키 제약조건
+#### 외래키 제약조건
 - BOARD_LIKE.member_id (FK) → MEMBER.member_id (PK)
 
-설명
+#### 설명
 - 하나의 회원은 여러 개의 게시글에 좋아요를 누를 수 있다.
 - 하나의 좋아요는 반드시 하나의 회원에 의해 생성된다.
 
@@ -212,13 +212,13 @@ Cardinality
 
 ### 7. BOARD ↔ BOARD_LIKE
 
-Cardinality
+#### Cardinality
 - BOARD (1) : BOARD_LIKE (N)
 
-외래키 제약조건
+#### 외래키 제약조건
 - BOARD_LIKE.board_id (FK) → BOARD.board_id (PK)
 
-설명
+#### 설명
 - 하나의 게시글은 여러 개의 좋아요를 가질 수 있다.
 - 하나의 좋아요는 반드시 하나의 게시글에 속한다.
 
