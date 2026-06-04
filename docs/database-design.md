@@ -30,8 +30,6 @@
 | created_at    | DATETIME     | NOT NULL                                                                         | 생성 일시            |
 | updated_at    | DATETIME     | NOT NULL                                                                         | 수정 일시            |
 
----
-
 ### 2. BOARD
 
 #### 설명
@@ -51,8 +49,6 @@
 | status     | VARCHAR(20)  | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE' | 상태        |
 | created_at | DATETIME     | NOT NULL                                                                      | 생성 일시     |
 | updated_at | DATETIME     | NOT NULL                                                                      | 수정 일시     |
-
----
 
 ### 3. COMMENT
 
@@ -78,8 +74,6 @@
 - parent_id가 NULL이면 최상위 댓글을 의미
 - parent_id가 존재하면 대댓글을 의미
 
----
-
 ### 4. BOARD_LIKE
 
 #### 설명
@@ -103,8 +97,6 @@
 #### 비고
 
 - 동일 회원은 동일 게시글에 딱 한 번만 좋아요를 누를 수 있다.
-
----
 
 ### 5. UPLOAD_FILE
 
@@ -143,8 +135,6 @@
 - 하나의 회원은 여러 개의 게시글을 작성할 수 있다.
 - 하나의 게시글은 반드시 하나의 회원에 의해 작성된다.
 
----
-
 ### 2. MEMBER ↔ COMMENT
 
 #### Cardinality
@@ -160,8 +150,6 @@
 - 하나의 회원은 여러 개의 댓글을 작성할 수 있다.
 - 하나의 댓글은 반드시 하나의 회원에 의해 작성된다.
 
---- 
-
 ### 3. BOARD ↔ COMMENT
 
 #### Cardinality
@@ -176,8 +164,6 @@
 
 - 하나의 게시글은 여러 개의 댓글을 가질 수 있다.
 - 하나의 댓글은 반드시 하나의 게시글에 속한다.
-
---- 
 
 ### 4. COMMENT ↔ COMMENT
 
@@ -195,8 +181,6 @@
 - 하나의 대댓글은 반드시 하나의 부모 댓글에 속한다.
 - 최상위 댓글은 parent_id가 NULL이다.
 
---- 
-
 ### 5. BOARD ↔ UPLOAD_FILE
 
 #### Cardinality
@@ -212,8 +196,6 @@
 - 하나의 게시글은 여러 개의 첨부파일을 가질 수 있다.
 - 하나의 첨부파일은 반드시 하나의 게시글에 속한다.
 
---- 
-
 ### 6. MEMBER ↔ BOARD_LIKE
 
 #### Cardinality
@@ -228,8 +210,6 @@
 
 - 하나의 회원은 여러 개의 게시글에 좋아요를 누를 수 있다.
 - 하나의 좋아요는 반드시 하나의 회원에 속한다.
-
---- 
 
 ### 7. BOARD ↔ BOARD_LIKE
 
