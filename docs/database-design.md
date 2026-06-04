@@ -250,6 +250,9 @@
 
 ## ERD Diagram
 
+본 프로젝트의 데이터베이스 구조를 시각적으로 표현한 ERD이다.
+
+![ERD](./images/erd.png)
 
 ---
 

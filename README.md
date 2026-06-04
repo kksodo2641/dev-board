@@ -129,5 +129,7 @@ Spring Boot와 JPA를 활용하여 실무형 게시판 서비스를 구현한다
 
 ## 프로젝트 문서
 - [Domain Model](./docs/domain-model.md)
+  - 도메인 모델 및 비즈니스 규칙 정의
 
 - [Database Design](./docs/database-design.md)
+  - 데이터베이스 스키마, 관계 및 ERD 정의
