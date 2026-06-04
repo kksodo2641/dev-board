@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: dev-board
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/dev_board
+    username: user_minseok
+    password: 1234
+
+  jpa:
+    open-in-view: false
+
+    hibernate:
+#      ddl-auto: none
+      ddl-auto: validate
+
+    properties:
+      hibernate:
+        format_sql: true
