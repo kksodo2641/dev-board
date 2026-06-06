@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="https://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" th:href="@{/css/home.css}">
+    <title>홈 화면</title>
+</head>
+
+<body>
+
+<div class="container">
+    <nav class="navbar">
+        <div class="navbar-logo">Dev Board</div>
+
+        <div class="navbar-menu">
+            <a th:href="@{/members/signup}">회원가입</a>
+            <a href="#">로그인</a>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <h1>Dev Board</h1>
+        <p class="description">Spring Boot 기반 개발자 커뮤니티 게시판</p>
+
+        <div class="button-group">
+            <a th:href="@{/members/signup}" class="btn btn-primary">회원가입</a>
+            <a href="#" class="btn btn-secondary">로그인</a>
+        </div>
+    </div>
+
+    <div class="feature-section">
+        <h2>주요 기능</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>회원</h3>
+                <p>회원가입, 로그인, 마이페이지</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>게시글</h3>
+                <p>작성, 수정, 삭제, 조회</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>댓글</h3>
+                <p>댓글 및 대댓글 기능</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>검색</h3>
+                <p>제목, 작성자 기반 검색</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>파일</h3>
+                <p>첨부파일 업로드 및 다운로드</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>좋아요</h3>
+                <p>게시글 추천 기능</p>
+            </div>
+        </div>
+    </div>
+</div> <!--/container-->
+
+</body>
+</html>

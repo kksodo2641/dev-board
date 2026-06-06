@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="https://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>회원가입</title>
+    <link rel="stylesheet" th:href="@{/css/member.css}">
+</head>
+
+<body>
+<div class="container">
+
+    <div class="signup-card">
+        <div class="header">
+            <h1>Dev Board</h1>
+            <p>회원가입</p>
+        </div>
+
+        <form th:object="${signupRequest}" th:action="@{/members/signup}" method="post">
+            <div class="form-group">
+                <label for="email">이메일</label>
+                <input type="email" id="email" th:field="*{email}" placeholder="example@email.com">
+                <div th:errors="*{email}" class="error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input type="password" id="password" th:field="*{password}" placeholder="8자 이상 입력">
+                <div th:errors="*{password}" class="error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="nickname">닉네임</label>
+                <input type="text" id="nickname" th:field="*{nickname}" placeholder="닉네임 입력">
+                <div th:errors="*{nickname}" class="error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="gender">성별</label>
+                <select id="gender" th:field="*{gender}">
+                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).NONE}" th:text="선택안함"></option>
+                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).MALE}" th:text="남성"></option>
+                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).FEMALE}" th:text="여성"></option>
+                </select>
+                <div th:errors="*{gender}" class="error"></div>
+            </div>
+
+            <button type="submit" class="signup-btn">회원가입</button>
+        </form>
+    </div>
+</div> <!--/container-->
+</body>
+</html>
