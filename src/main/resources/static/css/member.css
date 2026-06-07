@@ -78,7 +78,7 @@ body {
     cursor: pointer;
 }
 
-.signup-btn {
+.signup-btn:hover {
     background-color: #1d4ed8;
 }
 

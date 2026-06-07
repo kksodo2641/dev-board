@@ -7,14 +7,20 @@
 </head>
 
 <body>
-
 <div class="container">
     <nav class="navbar">
         <div class="navbar-logo">Dev Board</div>
 
-        <div class="navbar-menu">
+        <div th:unless="${isLogin}" class="navbar-menu">
             <a th:href="@{/members/signup}">회원가입</a>
-            <a href="#">로그인</a>
+            <a th:href="@{/members/login}">로그인</a>
+        </div>
+
+        <div th:if="${isLogin}" class="navbar-menu">
+            <a href="#">마이페이지</a>
+            <form th:action="@{/members/logout}" method="post" class="inline-form">
+                <button type="submit" class="nav-button">로그아웃</button>
+            </form>
         </div>
     </nav>
 
@@ -22,9 +28,16 @@
         <h1>Dev Board</h1>
         <p class="description">Spring Boot 기반 개발자 커뮤니티 게시판</p>
 
-        <div class="button-group">
+        <div th:unless="${isLogin}" class="button-group">
             <a th:href="@{/members/signup}" class="btn btn-primary">회원가입</a>
-            <a href="#" class="btn btn-secondary">로그인</a>
+            <a th:href="@{/members/login}" class="btn btn-secondary">로그인</a>
+        </div>
+
+        <div th:if="${isLogin}" class="button-group">
+            <a href="#" class="btn btn-primary">마이페이지</a>
+            <form th:action="@{/members/logout}" method="post">
+                <button type="submit" class="btn btn-secondary">로그아웃</button>
+            </form>
         </div>
     </div>
 
@@ -63,6 +76,5 @@
         </div>
     </div>
 </div> <!--/container-->
-
 </body>
 </html>
