@@ -87,3 +87,10 @@ body {
     color: #dc2626;
     font-size: 13px;
 }
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 24px;
+}

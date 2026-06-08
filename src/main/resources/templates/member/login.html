@@ -14,7 +14,10 @@
             <p>로그인</p>
         </div>
 
-        <form th:object="${loginRequest}" th:action method="post">
+        <form th:object="${loginRequest}" th:action="@{/members/login}" method="post">
+            <!-- 리다이렉트 URL (히든 필드) -->
+            <input type="hidden" name="redirectURL" th:value="${redirectURL}">
+
             <div class="form-group">
                 <label for="email">이메일</label>
                 <input type="email" id="email" th:field="*{email}" placeholder="example@email.com">

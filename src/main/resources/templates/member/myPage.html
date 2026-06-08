@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="https://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>마이페이지</title>
+    <link rel="stylesheet" th:href="@{/css/member.css}">
+</head>
+
+<body>
+<div class="container">
+    <div class="signup-card">
+        <div class="header">
+            <h1>Dev Board</h1>
+            <p>마이페이지</p>
+        </div>
+
+        <div class="form-group">
+            <label>이메일</label>
+            <input type="text" th:value="${myPageResponse.email}" readonly>
+        </div>
+        <div class="form-group">
+            <label>닉네임</label>
+            <input type="text" th:value="${myPageResponse.nickname}" readonly>
+        </div>
+        <div class="form-group">
+            <label>성별</label>
+            <input type="text" th:value="${myPageResponse.gender}" readonly>
+        </div>
+        <div class="form-group">
+            <label>권한</label>
+            <input type="text" th:value="${myPageResponse.role}" readonly>
+        </div>
+        <div class="form-group">
+            <label>회원 상태</label>
+            <input type="text" th:value="${myPageResponse.status}" readonly>
+        </div>
+        <div class="form-group">
+            <label>가입일</label>
+            <input type="text" th:value="${#temporals.format(myPageResponse.createdAt, 'yyyy-MM-dd HH:mm:ss')}" readonly>
+        </div>
+
+        <div class="button-group">
+            <a th:href="@{/}" class="btn btn-primary">홈으로</a>
+            <button type="button" class="btn btn-secondary" disabled>회원탈퇴 (준비중)</button>
+        </div>
+    </div>
+</div> <!--/container-->
+</body>
+</html>

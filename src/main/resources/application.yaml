@@ -1,3 +1,5 @@
+server.servlet.session.tracking-modes: cookie
+
 spring:
   application:
     name: dev-board

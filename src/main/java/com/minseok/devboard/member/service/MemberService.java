@@ -2,6 +2,7 @@ package com.minseok.devboard.member.service;
 
 import com.minseok.devboard.member.dto.request.LoginRequest;
 import com.minseok.devboard.member.dto.request.SignupRequest;
+import com.minseok.devboard.member.dto.response.MyPageResponse;
 import com.minseok.devboard.member.entity.Member;
 import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.DuplicateEmailException;
@@ -57,6 +58,17 @@ public class MemberService {
         }
         
         return foundMember.getId();
+    }
+    
+    public MyPageResponse getMyPage(final Long memberId) {
+        return memberRepository.findById(memberId)
+                               .map(m -> new MyPageResponse(m.getEmail(),
+                                                            m.getNickname(),
+                                                            m.getGender(),
+                                                            m.getRole(),
+                                                            m.getStatus(),
+                                                            m.getCreatedAt()))
+                               .orElseThrow();
     }
     
     private void validateDuplicateEmail(final String email) {

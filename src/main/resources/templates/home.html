@@ -17,7 +17,7 @@
         </div>
 
         <div th:if="${isLogin}" class="navbar-menu">
-            <a href="#">마이페이지</a>
+            <a th:href="@{/members/me}">마이페이지</a>
             <form th:action="@{/members/logout}" method="post" class="inline-form">
                 <button type="submit" class="nav-button">로그아웃</button>
             </form>
@@ -34,7 +34,7 @@
         </div>
 
         <div th:if="${isLogin}" class="button-group">
-            <a href="#" class="btn btn-primary">마이페이지</a>
+            <a th:href="@{/members/me}" class="btn btn-primary">마이페이지</a>
             <form th:action="@{/members/logout}" method="post">
                 <button type="submit" class="btn btn-secondary">로그아웃</button>
             </form>
