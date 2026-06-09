@@ -54,8 +54,10 @@ public class Member extends BaseTimeEntity {
         member.changePasswordHash(passwordHash);
         member.changeNickname(nickname);
         member.changeGender(gender);
-        member.changeRole(Role.USER);
-        member.changeStatus(MemberStatus.ACTIVE);
+        
+        member.changeRole(Role.USER); // 회원 생성 시 초기 권한은 USER
+        member.status = MemberStatus.ACTIVE; // 회원 생성 시 초기 상태는 ACTIVE
+        
         return member;
     }
     
@@ -88,11 +90,10 @@ public class Member extends BaseTimeEntity {
     }
     
     /**
-     * 회원 탈퇴 정책 확정 시, 리팩토링 예정
+     * 회원 탈퇴
      */
-    public void changeStatus(final MemberStatus status) {
-        requireNonNull(status);
-        this.status = status;
+    public void withdraw() {
+        status = MemberStatus.DELETED;
     }
     
     private static void validateText(final String value,

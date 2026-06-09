@@ -28,7 +28,7 @@ class MemberServiceTest {
     @Autowired MemberService memberService;
     @Autowired PasswordEncoder passwordEncoder;
     
-    //==회원가입 테스트==//
+    //==회원가입==//
     @Test
     @DisplayName("회원가입 성공")
     void signupSuccessTest() {
@@ -96,7 +96,7 @@ class MemberServiceTest {
                 .hasMessage("이미 존재하는 닉네임입니다.");
     }
     
-    //==로그인 테스트==//
+    //==로그인==//
     @Test
     @DisplayName("로그인 성공")
     void loginSuccessTest() {
@@ -116,18 +116,18 @@ class MemberServiceTest {
     
     @Test
     @DisplayName("로그인 실패 - 탈퇴 회원")
-    void loginDeletedMemberTest() {
+    void loginWithdrawMemberTest() {
         // given
-        final String email = "loginDeletedMemberTest@example.com";
-        final String password = "loginDeletedMemberTest-password";
-        final String nickname = "loginDeletedMember-nickname";
+        final String email = "loginWithdrawMemberTest@example.com";
+        final String password = "loginWithdrawMemberTest-password";
+        final String nickname = "loginWithdrawMember-nickname";
         
         final Long savedId = memberService.signup(new SignupRequest(email, password, nickname, Gender.NONE));
         
         // 회원 탈퇴
         final Member member = memberRepository.findById(savedId)
                                               .orElseThrow();
-        member.changeStatus(MemberStatus.DELETED);
+        member.withdraw();
         
         // when, then
         assertThatThrownBy(() -> memberService.login(new LoginRequest(email, password)))
@@ -164,6 +164,26 @@ class MemberServiceTest {
         final String tryPassword = "loginNotMatchPasswordTest-not-match-password";
         assertThatThrownBy(() -> memberService.login(new LoginRequest(email, tryPassword)))
                 .isInstanceOf(LoginFailedException.class);
+    }
+    
+    //==회원 탈퇴==//
+    @Test
+    @DisplayName("회원 탈퇴 시 DELETED 상태가 된다.")
+    void withdrawTest() {
+        // given
+        final String email = "withdrawTest@test.com";
+        final String password = "withdrawTest-password";
+        final String nickname = "withdrawTest-nickname";
+        
+        final Long id = memberService.signup(new SignupRequest(email, password, nickname, Gender.FEMALE));
+        
+        // when
+        memberService.withdraw(id);
+        
+        // then
+        final Member foundMember = memberRepository.findById(id)
+                                                   .orElseThrow();
+        assertThat(foundMember.getStatus()).isEqualTo(MemberStatus.DELETED);
     }
 }
 

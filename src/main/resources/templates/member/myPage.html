@@ -24,26 +24,37 @@
         </div>
         <div class="form-group">
             <label>성별</label>
-            <input type="text" th:value="${myPageResponse.gender}" readonly>
+            <input type="text" th:value="${myPageResponse.gender.description}" readonly>
         </div>
         <div class="form-group">
             <label>권한</label>
-            <input type="text" th:value="${myPageResponse.role}" readonly>
+            <input type="text" th:value="${myPageResponse.role.description}" readonly>
         </div>
         <div class="form-group">
             <label>회원 상태</label>
-            <input type="text" th:value="${myPageResponse.status}" readonly>
+            <input type="text" th:value="${myPageResponse.status.description}" readonly>
         </div>
         <div class="form-group">
             <label>가입일</label>
-            <input type="text" th:value="${#temporals.format(myPageResponse.createdAt, 'yyyy-MM-dd HH:mm:ss')}" readonly>
+            <input type="text" th:value="${#temporals.format(myPageResponse.createdAt, 'yyyy-MM-dd')}" readonly>
         </div>
 
         <div class="button-group">
             <a th:href="@{/}" class="btn btn-primary">홈으로</a>
-            <button type="button" class="btn btn-secondary" disabled>회원탈퇴 (준비중)</button>
+
+            <form th:action="@{/members/me/withdraw}" method="post"
+                  onsubmit="return confirm('정말 회원 탈퇴하시겠습니까?');">
+                <button type="submit" class="btn btn-danger">회원탈퇴</button>
+            </form>
         </div>
     </div>
 </div> <!--/container-->
 </body>
 </html>
+
+
+
+
+
+
+

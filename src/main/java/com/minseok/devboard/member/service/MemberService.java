@@ -71,6 +71,13 @@ public class MemberService {
                                .orElseThrow();
     }
     
+    @Transactional
+    public void withdraw(final Long memberId) {
+        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
+                                              .orElseThrow();
+        member.withdraw();
+    }
+    
     private void validateDuplicateEmail(final String email) {
         assert (email != null);
         if (memberRepository.existsByEmail(email)) {
