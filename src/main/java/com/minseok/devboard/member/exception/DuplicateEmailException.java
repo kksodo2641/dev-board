@@ -3,13 +3,6 @@ package com.minseok.devboard.member.exception;
 public class DuplicateEmailException extends RuntimeException {
     
     public DuplicateEmailException() {
-    }
-    
-    public DuplicateEmailException(final String message) {
-        super(message);
-    }
-    
-    public DuplicateEmailException(final String message, final Throwable cause) {
-        super(message, cause);
+        super("이미 존재하는 이메일입니다.");
     }
 }

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>회원정보 수정</title>
+    <link rel="stylesheet" th:href="@{/css/member.css}">
+</head>
+
+<body>
+<div class="container">
+    <div class="signup-card">
+        <div class="header">
+            <h1>회원정보 수정</h1>
+            <p>닉네임과 성별만 수정할 수 있습니다.</p>
+        </div>
+
+        <form th:object="${updateMemberRequest}" th:action method="post">
+            <div class="form-group">
+                <label for="nickname">닉네임</label>
+                <input type="text" id="nickname" th:field="*{nickname}" placeholder="닉네임을 입력하세요">
+                <div th:errors="*{nickname}" class="error">닉네임 오류</div>
+            </div>
+
+            <div class="form-group">
+                <label for="gender">성별</label>
+                <select id="gender" th:field="*{gender}">
+                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).NONE}">선택 안함</option>
+                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).MALE}">남성</option>
+                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).FEMALE}">여성</option>
+                </select>
+
+                <div th:errors="*{gender}" class="error">성별 오류</div>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary">수정 완료</button>
+                <a th:href="@{/members/me}" class="btn btn-secondary">취소</a>
+            </div>
+        </form>
+    </div>
+</div> <!--/container-->
+</body>
+</html>

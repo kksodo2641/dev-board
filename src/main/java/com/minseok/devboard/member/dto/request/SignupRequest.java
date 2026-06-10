@@ -23,10 +23,10 @@ public class SignupRequest {
     private String password;
     
     @NotBlank(message = "닉네임은 필수입니다.")
-    @Size(max = 30, message = "최대 30자까지만 가능합니다.")
+    @Size(min = 2, max = 30, message = "닉네임은 최소 2글자, 최대 30자까지만 가능합니다.")
     private String nickname;
     
-    @NotNull
+    @NotNull(message = "성별은 필수입니다.")
     private Gender gender;
     
     public SignupRequest(final String email,

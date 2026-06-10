@@ -2,6 +2,7 @@ package com.minseok.devboard.member.controller;
 
 import com.minseok.devboard.member.dto.request.LoginRequest;
 import com.minseok.devboard.member.dto.request.SignupRequest;
+import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
 import com.minseok.devboard.member.dto.response.MyPageResponse;
 import com.minseok.devboard.member.exception.DuplicateEmailException;
 import com.minseok.devboard.member.exception.DuplicateNicknameException;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.SessionAttribute;
 
 import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
+import static java.util.Objects.requireNonNull;
 
 @Controller
 @RequiredArgsConstructor
@@ -65,8 +67,7 @@ public class MemberController {
     public String login(final @Valid @ModelAttribute LoginRequest loginRequest,
                         final BindingResult bindingResult,
                         final HttpSession session,
-                        final @RequestParam(defaultValue = "/") String redirectURL,
-                        final Model model) {
+                        final @RequestParam(defaultValue = "/") String redirectURL) {
         if (bindingResult.hasErrors()) {
             return resolveView("login");
         }
@@ -90,7 +91,7 @@ public class MemberController {
     }
     
     @GetMapping("/me")
-    public String myPage(final @SessionAttribute(name = LOGIN_MEMBER_ID, required = false) Long memberId,
+    public String myPage(final @SessionAttribute(LOGIN_MEMBER_ID) Long memberId,
                          final Model model) {
         final MyPageResponse myPageResponse = memberService.getMyPage(memberId);
         model.addAttribute("myPageResponse", myPageResponse);
@@ -98,9 +99,41 @@ public class MemberController {
         return resolveView("myPage");
     }
     
+    @GetMapping("/me/edit")
+    public String editForm(final @SessionAttribute(LOGIN_MEMBER_ID) Long loginMemberId,
+                           final @ModelAttribute UpdateMemberRequest updateMemberRequest) {
+        final MyPageResponse myPageResponse = memberService.getMyPage(loginMemberId);
+        updateMemberRequest.setNickname(myPageResponse.getNickname());
+        updateMemberRequest.setGender(myPageResponse.getGender());
+        
+        return resolveView("edit");
+    }
+    
+    @PostMapping("/me/edit")
+    public String edit(final @SessionAttribute(LOGIN_MEMBER_ID) Long loginMemberId,
+                       final @Valid @ModelAttribute UpdateMemberRequest updateMemberRequest,
+                       final BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return resolveView("edit");
+        }
+        
+        try {
+            memberService.updateProfile(loginMemberId, updateMemberRequest);
+            
+        } catch (final DuplicateNicknameException e) {
+            bindingResult.rejectValue("nickname", "duplicateNickname", e.getMessage());
+            return resolveView("edit");
+        }
+        
+        return "redirect:/members/me";
+    }
+    
     @PostMapping("/me/withdraw")
-    public String withdraw(final HttpSession session) {
-        memberService.withdraw((Long) session.getAttribute(LOGIN_MEMBER_ID));
+    public String withdraw(final @SessionAttribute(LOGIN_MEMBER_ID) Long loginMemberId,
+                           final HttpSession session) {
+        requireNonNull(loginMemberId);
+        
+        memberService.withdraw(loginMemberId);
         session.invalidate();
         
         return "redirect:/";

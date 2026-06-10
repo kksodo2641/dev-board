@@ -52,9 +52,9 @@ public class Member extends BaseTimeEntity {
         final Member member = new Member();
         member.changeEmail(email);
         member.changePasswordHash(passwordHash);
-        member.changeNickname(nickname);
-        member.changeGender(gender);
+        member.updateProfile(nickname, gender);
         
+        // 생성 시 기본값
         member.changeRole(Role.USER); // 회원 생성 시 초기 권한은 USER
         member.status = MemberStatus.ACTIVE; // 회원 생성 시 초기 상태는 ACTIVE
         
@@ -62,23 +62,13 @@ public class Member extends BaseTimeEntity {
     }
     
     public void changeEmail(final String email) {
-        validateText(email, "email");
+        validateNotBlankText(email, "email");
         this.email = email;
     }
     
     public void changePasswordHash(final String passwordHash) {
-        validateText(passwordHash, "passwordHash");
+        validateNotBlankText(passwordHash, "passwordHash");
         this.passwordHash = passwordHash;
-    }
-    
-    public void changeNickname(final String nickname) {
-        validateText(nickname, "nickname");
-        this.nickname = nickname;
-    }
-    
-    public void changeGender(final Gender gender) {
-        requireNonNull(gender);
-        this.gender = gender;
     }
     
     /**
@@ -90,17 +80,30 @@ public class Member extends BaseTimeEntity {
     }
     
     /**
+     * 회원정보(닉네임, 성별) 수정
+     */
+    public void updateProfile(final String nickname,
+                              final Gender gender) {
+        requireNonNull(gender);
+        validateNotBlankText(nickname, "nickname");
+        
+        this.nickname = nickname;
+        this.gender = gender;
+    }
+    
+    /**
      * 회원 탈퇴
      */
     public void withdraw() {
         status = MemberStatus.DELETED;
     }
     
-    private static void validateText(final String value,
-                                     final String fieldName) {
+    private static void validateNotBlankText(final String value,
+                                             final String fieldName) {
         requireNonNull(value);
         
         if (value.isBlank()) {
+            assert (fieldName != null);
             throw new IllegalArgumentException(fieldName + "은 공백일 수 없습니다.");
         }
     }

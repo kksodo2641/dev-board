@@ -116,6 +116,15 @@ body {
     background-color: #1d4ed8;
 }
 
+.btn-secondary {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.btn-secondary:hover {
+    background-color: #d1d5db;
+}
+
 .btn-danger {
     background-color: #dc2626;
     color: white;

@@ -3,13 +3,6 @@ package com.minseok.devboard.member.exception;
 public class LoginFailedException extends RuntimeException {
     
     public LoginFailedException() {
-    }
-    
-    public LoginFailedException(final String message) {
-        super(message);
-    }
-    
-    public LoginFailedException(final String message, final Throwable cause) {
-        super(message, cause);
+        super("이메일 또는 비밀번호가 일치하지 않습니다.");
     }
 }

@@ -2,6 +2,7 @@ package com.minseok.devboard.member.service;
 
 import com.minseok.devboard.member.dto.request.LoginRequest;
 import com.minseok.devboard.member.dto.request.SignupRequest;
+import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
 import com.minseok.devboard.member.entity.Gender;
 import com.minseok.devboard.member.entity.Member;
 import com.minseok.devboard.member.entity.MemberStatus;
@@ -9,6 +10,7 @@ import com.minseok.devboard.member.entity.Role;
 import com.minseok.devboard.member.exception.DuplicateEmailException;
 import com.minseok.devboard.member.exception.DuplicateNicknameException;
 import com.minseok.devboard.member.exception.LoginFailedException;
+import com.minseok.devboard.member.exception.MemberNotFoundException;
 import com.minseok.devboard.member.repository.MemberRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -164,6 +166,110 @@ class MemberServiceTest {
         final String tryPassword = "loginNotMatchPasswordTest-not-match-password";
         assertThatThrownBy(() -> memberService.login(new LoginRequest(email, tryPassword)))
                 .isInstanceOf(LoginFailedException.class);
+    }
+    
+    //==회원정보 수정==//
+    @Test
+    @DisplayName("회원정보 수정 성공")
+    void updateProfileTest() {
+        // given
+        final String email = "updateProfileTest@test.com";
+        final String password = "updateProfileTest-password";
+        final String nickname = "updateProfile-before";
+        final Gender gender = Gender.MALE;
+        
+        final Long memberId = memberService.signup(new SignupRequest(email, password, nickname, gender));
+        
+        // when
+        final String newNickname = "updateProfile-after";
+        final Gender newGender = Gender.NONE;
+        
+        memberService.updateProfile(memberId, new UpdateMemberRequest(newNickname,
+                                                                      newGender));
+        
+        // then
+        final Member foundMember = memberRepository.findById(memberId)
+                                                   .orElseThrow();
+        
+        assertThat(foundMember.getNickname()).isEqualTo(newNickname);
+        assertThat(foundMember.getGender()).isEqualTo(newGender);
+    }
+    
+    @Test
+    @DisplayName("회원정보 수정 성공 - 닉네임 유지, 성별만 수정")
+    void updateProfileWithSameNicknameTest() {
+        // given
+        final String email = "updateProfileWithSameNickname@test.com";
+        final String password = "updateProfileWithSameNickname-password";
+        final String nickname = "updateProfile-SameNickname";
+        final Gender gender = Gender.FEMALE;
+        
+        final Long memberId = memberService.signup(new SignupRequest(email, password, nickname, gender));
+        
+        // when
+        final Gender newGender = Gender.NONE;
+        
+        memberService.updateProfile(memberId, new UpdateMemberRequest(nickname,
+                                                                      newGender));
+        
+        // then
+        final Member foundMember = memberRepository.findById(memberId)
+                                                   .orElseThrow();
+        
+        assertThat(foundMember.getNickname()).isEqualTo(nickname);
+        assertThat(foundMember.getGender()).isEqualTo(newGender);
+    }
+    
+    @Test
+    @DisplayName("회원정보 수정 실패 - 중복 닉네임으로 수정")
+    void updateProfileDuplicateNicknameTest() {
+        // given
+        final String nickname1 = "updateProfileDupNickname-1";
+        final String nickname2 = "updateProfileDupNickname-2";
+        
+        memberService.signup(new SignupRequest("updateProfileDupNicknameTest-1@test.com",
+                                               "password",
+                                               nickname1,
+                                               Gender.NONE));
+        
+        final Long targetId = memberService.signup(new SignupRequest("updateProfileDupNicknameTest-2@test.com",
+                                                                     "password",
+                                                                     nickname2,
+                                                                     Gender.MALE));
+        
+        // when, then
+        final UpdateMemberRequest request = new UpdateMemberRequest(nickname1, Gender.FEMALE);
+        
+        assertThatThrownBy(() -> memberService.updateProfile(targetId, request))
+                .isInstanceOf(DuplicateNicknameException.class);
+        
+        final Member foundMember = memberRepository.findById(targetId)
+                                                   .orElseThrow();
+        
+        assertThat(foundMember.getNickname()).isEqualTo(nickname2);
+        assertThat(foundMember.getGender()).isEqualTo(Gender.MALE);
+    }
+    
+    @Test
+    @DisplayName("회원정보 수정 실패 - 탈퇴 회원")
+    void updateProfileWithdrawMemberTest() {
+        // given
+        final String email = "updateProfileWithdrawMemberTest@test.com";
+        final String password = "updateProfileWithdrawMemberTest-password";
+        final String nickname = "updateProfileWithdraw-before";
+        final Gender gender = Gender.MALE;
+        
+        final Long memberId = memberService.signup(new SignupRequest(email, password, nickname, gender));
+        
+        // 회원 탈퇴
+        memberService.withdraw(memberId);
+        
+        // when, then
+        final UpdateMemberRequest request = new UpdateMemberRequest("updateProfileWithdraw-after",
+                                                                    Gender.FEMALE);
+        
+        assertThatThrownBy(() -> memberService.updateProfile(memberId, request))
+                .isInstanceOf(MemberNotFoundException.class);
     }
     
     //==회원 탈퇴==//

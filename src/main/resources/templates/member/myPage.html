@@ -40,7 +40,9 @@
         </div>
 
         <div class="button-group">
-            <a th:href="@{/}" class="btn btn-primary">홈으로</a>
+            <a th:href="@{/}" class="btn btn-secondary">홈으로</a>
+
+            <a th:href="@{/members/me/edit}" class="btn btn-primary">회원정보 수정</a>
 
             <form th:action="@{/members/me/withdraw}" method="post"
                   onsubmit="return confirm('정말 회원 탈퇴하시겠습니까?');">

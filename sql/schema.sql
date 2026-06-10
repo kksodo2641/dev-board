@@ -1,5 +1,5 @@
 -- dev-board schema
--- MySQL 8.x
+-- MySQL 8.0.43
 -- Initial version
 
 create table member
@@ -12,7 +12,10 @@ create table member
     role          varchar(10)  not null default 'USER' check (role in ('USER', 'ADMIN')),
     status        varchar(20)  not null default 'ACTIVE' check (status in ('ACTIVE', 'DELETED')),
     created_at    DATETIME     not null,
-    updated_at    DATETIME     not null
+    updated_at    DATETIME     not null,
+
+    constraint chk_member_nickname_length
+        CHECK ((char_length(nickname) between 2 and 30))
 );
 
 --------------------------------------------------
