@@ -23,7 +23,7 @@
 | member_id     | BIGINT       | PK (auto_increment)                                                              | 회원 ID            |
 | email         | VARCHAR(255) | NOT NULL, UNIQUE                                                                 | 이메일, 로그인 ID로 사용  |
 | password_hash | VARCHAR(255) | NOT NULL                                                                         | 비밀번호, BCrypt 해시값 |
-| nickname      | VARCHAR(30)  | NOT NULL, UNIQUE                                                                 | 닉네임              |
+| nickname      | VARCHAR(30)  | NOT NULL, UNIQUE CHECK (char_length(nickname) between 2 and 30)                  | 닉네임              |
 | gender        | VARCHAR(10)  | NOT NULL, <br/> CHECK(gender IN ('MALE', 'FEMALE', 'NONE')),<br/> DEFAULT 'NONE' | 성별               |
 | role          | VARCHAR(10)  | NOT NULL, <br/> CHECK(role IN ('USER', 'ADMIN')),<br/> DEFAULT 'USER'            | 권한               |
 | status        | VARCHAR(20)  | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE'    | 상태               |

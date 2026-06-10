@@ -24,11 +24,11 @@
             <div class="form-group">
                 <label for="gender">성별</label>
                 <select id="gender" th:field="*{gender}">
-                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).NONE}">선택 안함</option>
-                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).MALE}">남성</option>
-                    <option th:value="${T(com.minseok.devboard.member.entity.Gender).FEMALE}">여성</option>
+                    <option th:each="g : ${displayGenders}"
+                            th:value="${g}"
+                            th:text="${g.description}">
+                    </option>
                 </select>
-
                 <div th:errors="*{gender}" class="error">성별 오류</div>
             </div>
 

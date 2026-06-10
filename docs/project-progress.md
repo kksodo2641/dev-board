@@ -2,7 +2,7 @@
 
 ## Current Branch
 
-feature/member
+main
 
 ---
 
@@ -21,6 +21,7 @@ feature/member
 - README 작성
 - Domain Model 문서 작성
 - Database Design 문서 작성
+- Project Progress 문서 작성 및 관리
 
 ### Member
 
@@ -69,6 +70,20 @@ feature/member
   - FEMALE → 여성
   - NONE → 선택안함
 
+#### Profile Update
+- UpdateMemberRequest DTO 구현
+- 회원정보 수정 Service 구현
+- 회원정보 수정 Controller 구현
+- 회원정보 수정 View 구현
+- 닉네임 수정 기능 구현
+- 성별 수정 기능 구현
+- 닉네임 중복 검증 구현
+- 회원정보 수정 테스트 작성
+- Member.updateProfile() 도입
+- Gender 선택 목록 View 리팩토링
+  - @ModelAttribute 활용
+  - Thymeleaf 반복문 적용
+
 #### Withdrawal
 - 회원 탈퇴 기능 구현
 - Soft Delete 정책 적용
@@ -83,8 +98,14 @@ feature/member
 - Controller의 수동 로그인 체크 제거
 - th:action 기반 로그인 흐름으로 리팩토링
 
-#### Home
+#### Exception
+- DuplicateEmailException 구현
+- DuplicateNicknameException 구현
+- LoginFailedException 구현
+- MemberNotFoundException 구현
+- 예외 구조 통일
 
+#### Home
 - HomeController 구현
 - Home View 구현
 - Home CSS 적용
@@ -94,30 +115,24 @@ feature/member
 
 ## In Progress
 
-### Member
-
-- 회원정보 수정 기능 설계
+프로젝트 문서 최신화
 
 ---
 
 ## Next Tasks
 
-### Member
-
-- [ ] 회원정보 수정 기능 구현
-  - 닉네임 수정
-  - 성별 수정
-  - 닉네임 중복 검증
-  - 수정 화면 구현
-
 ### Board
 - [ ] 게시판 기능 설계
-- [ ] 게시판 등록 기능
-- [ ] 게시판 목록 조회 기능
-- [ ] 게시판 상세 조회 기능
+- [ ] Board 도메인 설계
+- [ ] Board Entity 구현
+- [ ] 게시글 작성 기능
+- [ ] 게시글 목록 조회 기능
+- [ ] 게시글 상세 조회 기능
+- [ ] 게시글 수정 기능
+- [ ] 게시글 삭제 기능
 
 ---
 
 ## Latest Commit
 
-[eaa7f25] feat: add member withdrawal and interceptor-based authentication
+[a854c4e] feat: add member profile update feature

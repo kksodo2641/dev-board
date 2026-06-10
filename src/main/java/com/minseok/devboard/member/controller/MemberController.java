@@ -4,6 +4,7 @@ import com.minseok.devboard.member.dto.request.LoginRequest;
 import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
 import com.minseok.devboard.member.dto.response.MyPageResponse;
+import com.minseok.devboard.member.entity.Gender;
 import com.minseok.devboard.member.exception.DuplicateEmailException;
 import com.minseok.devboard.member.exception.DuplicateNicknameException;
 import com.minseok.devboard.member.exception.LoginFailedException;
@@ -21,15 +22,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.SessionAttribute;
 
+import java.util.List;
+
 import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
-import static java.util.Objects.requireNonNull;
 
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/members")
 public class MemberController {
     
+    private static final List<Gender> DISPLAY_GENDERS = List.of(Gender.NONE, Gender.MALE, Gender.FEMALE);
+    
     private final MemberService memberService;
+    
+    @ModelAttribute("displayGenders")
+    public List<Gender> displayGenders() {
+        return DISPLAY_GENDERS;
+    }
     
     @GetMapping("/signup")
     public String signupForm(final @ModelAttribute SignupRequest signupRequest) {
@@ -131,8 +140,6 @@ public class MemberController {
     @PostMapping("/me/withdraw")
     public String withdraw(final @SessionAttribute(LOGIN_MEMBER_ID) Long loginMemberId,
                            final HttpSession session) {
-        requireNonNull(loginMemberId);
-        
         memberService.withdraw(loginMemberId);
         session.invalidate();
         
