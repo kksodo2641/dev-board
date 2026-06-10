@@ -45,6 +45,8 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false)
     private MemberStatus status;
     
+    //==생성 로직==//
+    
     public static Member createMember(final String email,
                                       final String passwordHash,
                                       final String nickname,
@@ -61,23 +63,7 @@ public class Member extends BaseTimeEntity {
         return member;
     }
     
-    public void changeEmail(final String email) {
-        validateNotBlankText(email, "email");
-        this.email = email;
-    }
-    
-    public void changePasswordHash(final String passwordHash) {
-        validateNotBlankText(passwordHash, "passwordHash");
-        this.passwordHash = passwordHash;
-    }
-    
-    /**
-     * 관리자 권한 관리 정책 확정 시, 리팩토링 예정
-     */
-    public void changeRole(final Role role) {
-        requireNonNull(role);
-        this.role = role;
-    }
+    //==비즈니스 로직==//
     
     /**
      * 회원정보(닉네임, 성별) 수정
@@ -96,6 +82,27 @@ public class Member extends BaseTimeEntity {
      */
     public void withdraw() {
         status = MemberStatus.DELETED;
+    }
+    
+    
+    //==내부 상태 변경==//
+    
+    private void changeEmail(final String email) {
+        validateNotBlankText(email, "email");
+        this.email = email;
+    }
+    
+    private void changePasswordHash(final String passwordHash) {
+        validateNotBlankText(passwordHash, "passwordHash");
+        this.passwordHash = passwordHash;
+    }
+    
+    /**
+     * 관리자 권한 관리 정책 확정 시, 리팩토링 예정
+     */
+    private void changeRole(final Role role) {
+        requireNonNull(role);
+        this.role = role;
     }
     
     private static void validateNotBlankText(final String value,

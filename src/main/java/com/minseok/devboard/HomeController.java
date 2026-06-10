@@ -1,5 +1,6 @@
 package com.minseok.devboard;
 
+import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -21,7 +22,7 @@ public class HomeController {
                                                required = false) Long loginMemberId) {
         if (loginMemberId != null) {
             model.addAttribute("isLogin",
-                               memberRepository.existsById(loginMemberId));
+                               memberRepository.existsByIdAndStatus(loginMemberId, MemberStatus.ACTIVE));
         }
         
         return "home";
