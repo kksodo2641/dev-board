@@ -89,11 +89,11 @@ feature/board
 
 #### Withdrawal
 
-- 회원 탈퇴 기능 구현
+- 회원탈퇴 기능 구현
 - Soft Delete 정책 적용
-- 회원 탈퇴 테스트 작성
-- 회원 탈퇴 View 연동
-- 탈퇴 시 세션 무효화 처리
+- 회원탈퇴 테스트 작성
+- 회원탈퇴 View 연동
+- 회원탈퇴 시 세션 무효화 처리
 
 #### Authentication
 
@@ -176,4 +176,16 @@ feature/board
 
 ## Latest Commit
 
-[b9db884] refactor: improve member domain encapsulation and login redirect handling
+[ebc6cde] docs: define board domain design
+
+---
+
+## 프로젝트 문서
+- [README](../README.md)
+  - 프로젝트 소개
+
+- [Domain Model](./domain-model.md)
+  - 도메인 모델 및 비즈니스 규칙 정의
+
+- [Database Design](./database-design.md)
+  - 데이터베이스 스키마, 관계 및 ERD 정의

@@ -2,9 +2,9 @@
 
 ## 개요
 
-본 문서는 dev-board 프로젝트의 **핵심 도메인과 비즈니스 규칙을 정의**하기 위한 문서이다.
+본 문서는 Dev Board 프로젝트의 **핵심 도메인과 비즈니스 규칙을 정의**하기 위한 문서이다.
 
-ERD, API 명세, 구현 상세는 별도 문서에서 관리한다.
+ERD, API 명세, 구현 상세는 별도 문서에서 관리한다. (최하단 링크 참조)
 
 ---
 
@@ -33,21 +33,21 @@ ERD, API 명세, 구현 상세는 별도 문서에서 관리한다.
 - 하나의 Member는 여러 개의 Board를 작성할 수 있다.
 - 하나의 Board는 반드시 하나의 Member에 의해서만 작성된다.
 
-Cardinality: One-to-Many(1:N)
+**Cardinality: One-to-Many(1:N)**
 
 ### 2. Member ↔ Comment
 
 - 하나의 Member는 여러 개의 Comment를 작성할 수 있다.
 - 하나의 Comment는 반드시 하나의 Member에 의해서만 작성된다.
 
-Cardinality: One-to-Many(1:N)
+**Cardinality: One-to-Many(1:N)**
 
 ### 3. Board ↔ Comment
 
 - 하나의 Board는 여러 개의 Comment를 가질 수 있다.
 - 하나의 Comment는 반드시 하나의 Board에만 속한다.
 
-Cardinality: One-to-Many(1:N)
+**Cardinality: One-to-Many(1:N)**
 
 ### 4. Comment ↔ Comment
 
@@ -56,14 +56,14 @@ Cardinality: One-to-Many(1:N)
 - 최상위 댓글은 부모 Comment를 가지지 않는다.
 - 댓글과 대댓글은 동일한 Comment 도메인으로 관리한다.
 
-Cardinality: One-to-Many(1:N, Self Reference)
+**Cardinality: One-to-Many(1:N, Self Reference)**
 
 ### 5. Board ↔ UploadFile
 
 - 하나의 Board는 여러 개의 UploadFile을 가질 수 있다.
 - 하나의 UploadFile은 반드시 하나의 Board에 속한다.
 
-Cardinality: One-to-Many(1:N)
+**Cardinality: One-to-Many(1:N)**
 
 ### 6. Member ↔ Board (좋아요 관점)
 
@@ -71,7 +71,7 @@ Cardinality: One-to-Many(1:N)
 - 하나의 Board는 여러 Member로부터 좋아요를 받을 수 있다.
 - 이같은 다대다 관계는 중간 테이블 BoardLike를 통해 해소한다.
 
-Cardinality: Many-to-Many(M:N)
+**Cardinality: Many-to-Many(M:N)**
 
 ### 7. Member ↔ BoardLike
 
@@ -79,14 +79,14 @@ Cardinality: Many-to-Many(M:N)
 - 하나의 BoardLike는 반드시 하나의 Member에 속한다.
 - 동일 회원은 동일 게시글에 대해 하나의 BoardLike만 가질 수 있다.
 
-Cardinality: One-to-Many(1:N)
+**Cardinality: One-to-Many(1:N)**
 
 ### 8. Board ↔ BoardLike
 
 - 하나의 Board는 여러 개의 좋아요를 가질 수 있다.
 - 하나의 BoardLike는 반드시 하나의 Board를 대상으로 한다.
 
-Cardinality: One-to-Many(1:N)
+**Cardinality: One-to-Many(1:N)**
 
 ---
 
@@ -126,7 +126,7 @@ Cardinality: One-to-Many(1:N)
 
 - 회원은 이메일과 비밀번호로 로그인한다.
 - 존재하지 않는 이메일과 비밀번호 불일치는 동일하게 처리한다.
-- ACTIVE 상태의 회원만 로그인할 수 있다.
+- 탈퇴한 회원은 로그인할 수 없다.
 - 로그인 성공 시 로그인 상태를 유지한다.
 - 로그아웃 시 로그인 상태를 해제한다.
 
@@ -157,7 +157,6 @@ Cardinality: One-to-Many(1:N)
 
 - 회원은 스스로 탈퇴할 수 있다.
 - 회원 탈퇴 시 복구할 수 없다.
-- 회원 탈퇴 시 상태는 DELETED가 된다.
 - 탈퇴한 회원의 작성 게시글 및 댓글은 유지한다.
 - 탈퇴한 회원의 이메일과 닉네임은 재사용할 수 없다.
 
@@ -180,8 +179,7 @@ Cardinality: One-to-Many(1:N)
 
 - 게시글은 제목, 내용, 카테고리를 가진다.
 - 게시글은 반드시 하나의 카테고리를 선택해야 한다.
-- 게시글 제목은 필수 입력값이다.
-- 게시글 내용은 필수 입력값이다.
+- 게시글 제목과 내용은 필수 입력값이다.
 - 게시글 제목은 최대 100자까지 입력할 수 있다.
 - 공지사항은 관리자만 작성할 수 있다.
 
@@ -204,9 +202,9 @@ Cardinality: One-to-Many(1:N)
 
 ##### 공지사항
 
-- 공지사항 기능을 제공한다.
-- 공지사항은 관리자만 작성할 수 있다.
-- 공지사항은 게시글 목록 최상단에 고정 노출한다.
+- 공지사항 게시글 기능을 제공한다.
+- 공지사항 게시글은 관리자만 작성할 수 있다.
+- 공지사항 게시글은 게시글 목록 최상단에 고정 노출한다.
 
 ##### 첨부파일
 
@@ -232,7 +230,7 @@ Cardinality: One-to-Many(1:N)
 - 댓글 작성자만 수정할 수 있다.
 - 댓글 작성자만 삭제할 수 있다.
 - 관리자는 모든 댓글을 삭제할 수 있다.
-- 댓글 삭제 시 소프트 삭제를 적용한다.
+- 댓글 삭제 시 Soft Delete를 적용한다.
 - 삭제된 댓글은 "삭제된 댓글입니다." 형태로 표시한다.
 - 삭제된 댓글의 대댓글은 유지한다.
 - 댓글은 부모 댓글을 가질 수 있다. 이를 통해 대댓글 기능을 지원한다.
@@ -296,19 +294,11 @@ Cardinality: One-to-Many(1:N)
 
 도메인 간 참조 무결성 및 이력 보존을 위해, 삭제가 필요한 주요 도메인(Member, Board, Comment)은 Soft Delete를 적용한다.
 
-- Hard Delete: 실제 DB에서 삭제 수행 O
-- Soft Delete: 실제 DB에서 삭제 수행 X, 상태만 변경
-  - MemberStatus: ACTIVE → DELETED
-  - BoardStatus: ACTIVE → DELETED
-  - CommentStatus: ACTIVE → DELETED
-
-| 도메인        | 삭제 방식       |
-|------------|-------------|
-| Member     | Soft Delete |
-| Board      | Soft Delete |
-| Comment    | Soft Delete |
-| BoardLike  | Hard Delete |
-| UploadFile | 삭제하지 않음     |
+| 삭제 정책       | DB 삭제 여부 | 대상 도메인                       | 상태               |
+|-------------|----------|------------------------------|------------------|
+| 보존          | 유지       | UploadFile                   | 없음               |
+| Hard Delete | 삭제       | BoardLike                    | 없음               |
+| Soft Delete | 유지       | Member<br/>Board<br/>Comment | ACTIVE → DELETED |
 
 ---
 
@@ -343,6 +333,7 @@ Cardinality: One-to-Many(1:N)
 - JOB (취업 게시판)
 
 ### 6. Gender
+
 - MALE
 - FEMALE
 - NONE
@@ -365,3 +356,15 @@ Cardinality: One-to-Many(1:N)
 - 관리자 페이지
 - 게시글 북마크 기능
 - 알림 기능
+
+---
+
+## 프로젝트 문서
+- [README](../README.md)
+  - 프로젝트 소개
+
+- [Database Design](./database-design.md)
+  - 데이터베이스 스키마, 관계 및 ERD 정의
+
+- [Project Progress](./project-progress.md)
+  - 현재 프로젝트 진행 현황 및 개발 계획
