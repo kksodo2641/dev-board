@@ -45,8 +45,8 @@
 | title      | VARCHAR(100) | NOT NULL                                                                      | 제목        |
 | content    | TEXT         | NOT NULL                                                                      | 본문        |
 | category   | VARCHAR(20)  | NOT NULL,<br/> CHECK(category IN ('NOTICE', 'FREE', 'QNA', 'STUDY', 'JOB'))   | 게시판 카테고리  |
-| view_count | INT          | NOT NULL, DEFAULT 0                                                           | 조회수       |
 | status     | VARCHAR(20)  | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE' | 상태        |
+| view_count | INT          | NOT NULL, DEFAULT 0                                                           | 조회수       |
 | created_at | DATETIME     | NOT NULL                                                                      | 생성 일시     |
 | updated_at | DATETIME     | NOT NULL                                                                      | 수정 일시     |
 

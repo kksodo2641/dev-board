@@ -37,10 +37,10 @@ public class MemberService {
         validateDuplicateEmail(request.getEmail());
         validateDuplicateNickname(request.getNickname());
         
-        final Member savedMember = memberRepository.save(Member.createMember(request.getEmail(),
-                                                                             passwordEncoder.encode(request.getPassword()),
-                                                                             request.getNickname(),
-                                                                             request.getGender()));
+        final Member savedMember = memberRepository.save(Member.create(request.getEmail(),
+                                                                       passwordEncoder.encode(request.getPassword()),
+                                                                       request.getNickname(),
+                                                                       request.getGender()));
         return savedMember.getId();
     }
     
