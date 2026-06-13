@@ -1,0 +1,13 @@
+.board-card {
+    width: 800px;
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.form-group textarea {
+    min-height: 320px;
+    resize: vertical;
+    font-family: inherit;
+}

@@ -327,11 +327,11 @@ ERD, API 명세, 구현 상세는 별도 문서에서 관리한다. (최하단 �
 
 ### 5. BoardCategory
 
-- NOTICE (공지사항)
 - FREE (자유 게시판)
 - QNA (질문/답변)
 - STUDY (스터디)
 - JOB (취업)
+- NOTICE (공지사항)
 
 ### 6. Gender
 

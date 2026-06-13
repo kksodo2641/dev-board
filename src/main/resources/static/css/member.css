@@ -1,80 +1,24 @@
-{
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-body {
-    background-color: #f5f7fa;
-    font-family: Arial, sans-serif;
-}
-
-.container {
-    min-height: 100vh;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    padding: 40px;
-}
-
 .signup-card {
     width: 420px;
     background: white;
     padding: 40px;
     border-radius: 12px;
-    box-shadow:
-            0 4px 12px rgba(0,0,0,0.08);
-}
-
-.header {
-    text-align: center;
-    margin-bottom: 32px;
-}
-
-.header h1 {
-    margin-bottom: 8px;
-}
-
-.header p {
-    color: #666;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 14px;
-}
-
-.form-group input,
-.form-group select {
-    outline: none;
-    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .signup-btn {
     width: 100%;
     padding: 14px;
+
     border: none;
     border-radius: 8px;
+
     background-color: #2563eb;
     color: white;
+
     font-size: 15px;
     font-weight: 600;
+
     cursor: pointer;
 }
 
@@ -82,60 +26,12 @@ body {
     background-color: #1d4ed8;
 }
 
-.error {
-    margin-top: 6px;
-    color: #dc2626;
-    font-size: 13px;
+.login-footer {
+    margin-top: 16px;
+    text-align: center;
 }
 
-.button-group {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin: 0;
-    margin-top: 24px;
-}
-
-.btn {
-    display: inline-block;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 8px;
+.login-footer a {
+    color: #2563eb;
     text-decoration: none;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
 }
-
-.btn-primary {
-    background-color: #2563eb;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #1d4ed8;
-}
-
-.btn-secondary {
-    background-color: #e5e7eb;
-    color: #374151;
-}
-
-.btn-secondary:hover {
-    background-color: #d1d5db;
-}
-
-.btn-danger {
-    background-color: #dc2626;
-    color: white;
-}
-
-.btn-danger:hover {
-    background-color: #b91c1c;
-}
-
-
-
-
-
-

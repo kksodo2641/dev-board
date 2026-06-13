@@ -88,6 +88,11 @@ public class Member extends BaseTimeEntity {
         status = MemberStatus.DELETED;
     }
     
+    //==조회 메서드==//
+    public boolean isAdmin() {
+        return role == Role.ADMIN;
+    }
+    
     //==내부 상태 변경==//
     
     private void changeEmail(final String email) {
