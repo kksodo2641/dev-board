@@ -37,11 +37,13 @@ public class MemberService {
         validateDuplicateEmail(request.getEmail());
         validateDuplicateNickname(request.getNickname());
         
-        final Member savedMember = memberRepository.save(Member.create(request.getEmail(),
-                                                                       passwordEncoder.encode(request.getPassword()),
-                                                                       request.getNickname(),
-                                                                       request.getGender()));
-        return savedMember.getId();
+        final Member member = Member.create(request.getEmail(),
+                                            passwordEncoder.encode(request.getPassword()),
+                                            request.getNickname(),
+                                            request.getGender());
+        
+        return memberRepository.save(member)
+                               .getId();
     }
     
     public Long login(final LoginRequest request) {
