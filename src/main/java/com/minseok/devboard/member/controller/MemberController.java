@@ -103,7 +103,7 @@ public class MemberController {
     public String myPage(final @SessionAttribute(LOGIN_MEMBER_ID) Long memberId,
                          final Model model) {
         final MyPageResponse myPageResponse = memberService.getMyPage(memberId);
-        model.addAttribute("myPageResponse", myPageResponse);
+        model.addAttribute("member", myPageResponse);
         
         return resolveView("myPage");
     }

@@ -65,12 +65,7 @@ public class MemberService {
         assert (memberId != null);
         
         return memberRepository.findById(memberId)
-                               .map(m -> new MyPageResponse(m.getEmail(),
-                                                            m.getNickname(),
-                                                            m.getGender(),
-                                                            m.getRole(),
-                                                            m.getStatus(),
-                                                            m.getCreatedAt()))
+                               .map(MyPageResponse::toResponse)
                                .orElseThrow(MemberNotFoundException::new);
     }
     

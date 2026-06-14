@@ -1,7 +1,10 @@
 package com.minseok.devboard.board.service;
 
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
+import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.entity.Board;
+import com.minseok.devboard.board.entity.BoardStatus;
+import com.minseok.devboard.board.exception.BoardNotFoundException;
 import com.minseok.devboard.board.repository.BoardRepository;
 import com.minseok.devboard.global.exception.AccessDeniedException;
 import com.minseok.devboard.member.entity.Member;
@@ -41,6 +44,14 @@ public class BoardService {
         
         return boardRepository.save(board)
                               .getId();
+    }
+    
+    public BoardDetailResponse readBoard(final Long boardId) {
+        assert (boardId != null);
+        
+        return boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
+                              .map(BoardDetailResponse::toResponse)
+                              .orElseThrow(BoardNotFoundException::new);
     }
 }
 

@@ -11,3 +11,40 @@
     resize: vertical;
     font-family: inherit;
 }
+
+.form-group textarea[readonly] {
+    background-color: #f9fafb;
+    cursor: default;
+}
+
+.board-title {
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+
+    border-bottom: 1px solid #ddd;
+}
+
+.board-title h2 {
+    font-size: 28px;
+}
+
+.board-meta {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+
+    border-bottom: 1px solid #ddd;
+}
+
+.board-meta div {
+    margin-bottom: 10px;
+}
+
+.board-meta strong {
+    display: inline-block;
+    width: 80px;
+}
+
+.board-content {
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
