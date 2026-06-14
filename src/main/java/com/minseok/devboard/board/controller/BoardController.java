@@ -10,6 +10,7 @@ import com.minseok.devboard.member.repository.MemberRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -29,26 +30,22 @@ public class BoardController {
     private final BoardService boardService;
     private final MemberRepository memberRepository;
     
-    @ModelAttribute("categories")
-    public List<BoardCategory> categories(final @SessionAttribute(LOGIN_MEMBER_ID) Long memberId) {
-        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
-                                              .orElseThrow(MemberNotFoundException::new);
-        
-        return member.isAdmin()
-               ? List.of(BoardCategory.values())
-               : BoardCategory.userCategories();
-    }
-    
     @GetMapping("/write")
-    public String writeForm(final @ModelAttribute WriteBoardRequest request) {
+    public String writeForm(final @SessionAttribute(LOGIN_MEMBER_ID) Long memberId,
+                            final @ModelAttribute WriteBoardRequest request,
+                            final Model model) {
+        model.addAttribute("categories", getWritableCategories(memberId));
         return resolveView("write");
     }
     
     @PostMapping("/write")
     public String write(final @SessionAttribute(LOGIN_MEMBER_ID) Long memberId,
                         final @Valid @ModelAttribute WriteBoardRequest request,
-                        final BindingResult bindingResult) {
+                        final BindingResult bindingResult,
+                        final Model model) {
+        
         if (bindingResult.hasErrors()) {
+            model.addAttribute("categories", getWritableCategories(memberId));
             return resolveView("write");
         }
         
@@ -56,6 +53,15 @@ public class BoardController {
         
         // TODO: 상세 화면(/boards/{boardId} redirect로 변경 예정
         return "redirect:/";
+    }
+    
+    private List<BoardCategory> getWritableCategories(final Long memberId) {
+        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
+                                              .orElseThrow(MemberNotFoundException::new);
+        
+        return member.isAdmin()
+               ? List.of(BoardCategory.values())
+               : BoardCategory.userCategories();
     }
     
     private static String resolveView(final String viewName) {
