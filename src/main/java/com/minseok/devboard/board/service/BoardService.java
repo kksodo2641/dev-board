@@ -3,6 +3,7 @@ package com.minseok.devboard.board.service;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.entity.Board;
+import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
 import com.minseok.devboard.board.exception.BoardNotFoundException;
 import com.minseok.devboard.board.repository.BoardRepository;
@@ -14,6 +15,8 @@ import com.minseok.devboard.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -52,6 +55,17 @@ public class BoardService {
         return boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
                               .map(BoardDetailResponse::toResponse)
                               .orElseThrow(BoardNotFoundException::new);
+    }
+    
+    public List<BoardCategory> getWritableCategories(final Long memberId) {
+        assert (memberId != null);
+        
+        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
+                                              .orElseThrow(MemberNotFoundException::new);
+        
+        return member.isAdmin()
+               ? List.of(BoardCategory.values())
+               : BoardCategory.userCategories();
     }
 }
 

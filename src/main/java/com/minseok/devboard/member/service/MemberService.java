@@ -5,7 +5,6 @@ import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
 import com.minseok.devboard.member.dto.response.MyPageResponse;
 import com.minseok.devboard.member.entity.Member;
-import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.DuplicateEmailException;
 import com.minseok.devboard.member.exception.DuplicateNicknameException;
 import com.minseok.devboard.member.exception.LoginFailedException;
@@ -15,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static com.minseok.devboard.member.entity.MemberStatus.ACTIVE;
 
 @Service
 @Transactional(readOnly = true)
@@ -52,7 +53,7 @@ public class MemberService {
         final Member foundMember = memberRepository.findByEmail(request.getEmail())
                                                    .orElseThrow(LoginFailedException::new);
         
-        if (foundMember.getStatus() != MemberStatus.ACTIVE
+        if (foundMember.getStatus() != ACTIVE
                 || !passwordEncoder.matches(request.getPassword(),
                                             foundMember.getPasswordHash())) {
             throw new LoginFailedException();
@@ -64,7 +65,7 @@ public class MemberService {
     public MyPageResponse getMyPage(final Long memberId) {
         assert (memberId != null);
         
-        return memberRepository.findById(memberId)
+        return memberRepository.findByIdAndStatus(memberId, ACTIVE)
                                .map(MyPageResponse::toResponse)
                                .orElseThrow(MemberNotFoundException::new);
     }
@@ -73,7 +74,7 @@ public class MemberService {
     public void withdraw(final Long memberId) {
         assert (memberId != null);
         
-        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
+        final Member member = memberRepository.findByIdAndStatus(memberId, ACTIVE)
                                               .orElseThrow(MemberNotFoundException::new);
         member.withdraw();
     }
@@ -84,7 +85,7 @@ public class MemberService {
         assert (memberId != null);
         assert (request != null);
         
-        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
+        final Member member = memberRepository.findByIdAndStatus(memberId, ACTIVE)
                                               .orElseThrow(MemberNotFoundException::new);
         
         final String newNickname = request.getNickname();

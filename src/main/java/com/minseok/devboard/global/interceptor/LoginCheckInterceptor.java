@@ -1,8 +1,6 @@
 package com.minseok.devboard.global.interceptor;
 
 import com.minseok.devboard.global.common.SessionConst;
-import com.minseok.devboard.member.entity.MemberStatus;
-import com.minseok.devboard.member.repository.MemberRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -17,8 +15,6 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class LoginCheckInterceptor implements HandlerInterceptor {
     
-    private final MemberRepository memberRepository;
-    
     @Override
     public boolean preHandle(final HttpServletRequest request,
                              final HttpServletResponse response,
@@ -29,9 +25,7 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
                                    ? null
                                    : (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
         
-        // 비로그인 시
-        if (loginMemberId == null
-                || !memberRepository.existsByIdAndStatus(loginMemberId, MemberStatus.ACTIVE)) {
+        if (loginMemberId == null) {
             response.sendRedirect("/members/login?redirectURL="
                                           + getEncodedRedirectURL(request));
             return false;

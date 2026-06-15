@@ -1,5 +1,6 @@
 package com.minseok.devboard.member.controller;
 
+import com.minseok.devboard.global.resolver.LoginMemberId;
 import com.minseok.devboard.member.dto.request.LoginRequest;
 import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
@@ -20,7 +21,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.SessionAttribute;
 
 import java.util.List;
 
@@ -100,7 +100,7 @@ public class MemberController {
     }
     
     @GetMapping("/me")
-    public String myPage(final @SessionAttribute(LOGIN_MEMBER_ID) Long memberId,
+    public String myPage(final @LoginMemberId Long memberId,
                          final Model model) {
         final MyPageResponse myPageResponse = memberService.getMyPage(memberId);
         model.addAttribute("member", myPageResponse);
@@ -109,7 +109,7 @@ public class MemberController {
     }
     
     @GetMapping("/me/edit")
-    public String editForm(final @SessionAttribute(LOGIN_MEMBER_ID) Long loginMemberId,
+    public String editForm(final @LoginMemberId Long loginMemberId,
                            final @ModelAttribute UpdateMemberRequest updateMemberRequest) {
         final MyPageResponse myPageResponse = memberService.getMyPage(loginMemberId);
         updateMemberRequest.setNickname(myPageResponse.getNickname());
@@ -119,7 +119,7 @@ public class MemberController {
     }
     
     @PostMapping("/me/edit")
-    public String edit(final @SessionAttribute(LOGIN_MEMBER_ID) Long loginMemberId,
+    public String edit(final @LoginMemberId Long loginMemberId,
                        final @Valid @ModelAttribute UpdateMemberRequest updateMemberRequest,
                        final BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
@@ -138,7 +138,7 @@ public class MemberController {
     }
     
     @PostMapping("/me/withdraw")
-    public String withdraw(final @SessionAttribute(LOGIN_MEMBER_ID) Long loginMemberId,
+    public String withdraw(final @LoginMemberId Long loginMemberId,
                            final HttpSession session) {
         memberService.withdraw(loginMemberId);
         session.invalidate();

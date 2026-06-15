@@ -2,12 +2,8 @@ package com.minseok.devboard.board.controller;
 
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
-import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.service.BoardService;
-import com.minseok.devboard.member.entity.Member;
-import com.minseok.devboard.member.entity.MemberStatus;
-import com.minseok.devboard.member.exception.MemberNotFoundException;
-import com.minseok.devboard.member.repository.MemberRepository;
+import com.minseok.devboard.global.resolver.LoginMemberId;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -18,11 +14,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.SessionAttribute;
-
-import java.util.List;
-
-import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequiredArgsConstructor
@@ -30,31 +22,32 @@ import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
 public class BoardController {
     
     private final BoardService boardService;
-    private final MemberRepository memberRepository;
     
     @GetMapping("/write")
-    public String writeForm(final @SessionAttribute(LOGIN_MEMBER_ID) Long memberId,
+    public String writeForm(final @LoginMemberId Long memberId,
                             final @ModelAttribute WriteBoardRequest request,
                             final Model model) {
-        model.addAttribute("categories", getWritableCategories(memberId));
+        model.addAttribute("categories",
+                           boardService.getWritableCategories(memberId));
         return resolveView("write");
     }
     
     @PostMapping("/write")
-    public String write(final @SessionAttribute(LOGIN_MEMBER_ID) Long memberId,
+    public String write(final @LoginMemberId Long memberId,
                         final @Valid @ModelAttribute WriteBoardRequest request,
                         final BindingResult bindingResult,
-                        final Model model) {
-        
+                        final Model model,
+                        final RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("categories", getWritableCategories(memberId));
+            model.addAttribute("categories",
+                               boardService.getWritableCategories(memberId));
             return resolveView("write");
         }
         
-        boardService.writeBoard(memberId, request);
+        final Long boardId = boardService.writeBoard(memberId, request);
+        redirectAttributes.addAttribute("boardId", boardId);
         
-        // TODO: 상세 화면(/boards/{boardId} redirect로 변경 예정
-        return "redirect:/";
+        return "redirect:/boards/{boardId}";
     }
     
     @GetMapping("/{boardId}")
@@ -64,15 +57,6 @@ public class BoardController {
         model.addAttribute("board", response);
         
         return resolveView("detail");
-    }
-    
-    private List<BoardCategory> getWritableCategories(final Long memberId) {
-        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
-                                              .orElseThrow(MemberNotFoundException::new);
-        
-        return member.isAdmin()
-               ? List.of(BoardCategory.values())
-               : BoardCategory.userCategories();
     }
     
     private static String resolveView(final String viewName) {
