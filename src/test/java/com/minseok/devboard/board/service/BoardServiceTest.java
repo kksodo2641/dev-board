@@ -1,5 +1,6 @@
 package com.minseok.devboard.board.service;
 
+import com.minseok.devboard.IntegrationTest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.entity.Board;
@@ -16,15 +17,11 @@ import com.minseok.devboard.member.service.MemberService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@Transactional
-@SpringBootTest
-class BoardServiceTest {
+class BoardServiceTest extends IntegrationTest {
     
     @Autowired MemberService memberService;
     @Autowired MemberRepository memberRepository;

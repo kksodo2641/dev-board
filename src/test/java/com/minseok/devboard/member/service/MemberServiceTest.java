@@ -1,5 +1,6 @@
 package com.minseok.devboard.member.service;
 
+import com.minseok.devboard.IntegrationTest;
 import com.minseok.devboard.member.dto.request.LoginRequest;
 import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
@@ -15,16 +16,12 @@ import com.minseok.devboard.member.repository.MemberRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@Transactional
-@SpringBootTest
-class MemberServiceTest {
+class MemberServiceTest extends IntegrationTest {
     
     @Autowired MemberRepository memberRepository;
     @Autowired MemberService memberService;
