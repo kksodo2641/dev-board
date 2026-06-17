@@ -89,6 +89,15 @@ public class Board extends BaseTimeEntity {
         status = BoardStatus.DELETED;
     }
     
+    //==조회 메서드==//
+    public boolean isDeleted() {
+        return status == BoardStatus.DELETED;
+    }
+    
+    public boolean isActive() {
+        return status == BoardStatus.ACTIVE;
+    }
+    
     //==내부 상태 변경 메서드==//
     private void changeTitle(final String title) {
         validateNotBlankText("title", title);

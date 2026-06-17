@@ -18,7 +18,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BoardNotFoundException.class)
     public String handleBoardNotFound(final BoardNotFoundException e) {
         // TODO: 에러 페이지 정책 확정 후, 404(NOT_FOUND) 상태코드 설정 및 오류 페이지 렌더링
-        return "redirect:/";
+        return "redirect:/boards";
     }
     
     @ExceptionHandler(AccessDeniedException.class)

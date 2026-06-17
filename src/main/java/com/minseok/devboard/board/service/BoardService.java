@@ -2,6 +2,7 @@ package com.minseok.devboard.board.service;
 
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
+import com.minseok.devboard.board.dto.response.BoardListResponse;
 import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
@@ -49,12 +50,25 @@ public class BoardService {
                               .getId();
     }
     
+    /**
+     * 상세 조회
+     */
     public BoardDetailResponse readBoard(final Long boardId) {
         assert (boardId != null);
         
         return boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
                               .map(BoardDetailResponse::toResponse)
                               .orElseThrow(BoardNotFoundException::new);
+    }
+    
+    /**
+     * 목록 조회
+     * 향후, 페이징 추가
+     */
+    public List<BoardListResponse> getBoardList() {
+        return boardRepository.findAllByOrderByIdDesc().stream()
+                              .map(BoardListResponse::toResponse)
+                              .toList();
     }
     
     public List<BoardCategory> getWritableCategories(final Long memberId) {

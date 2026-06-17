@@ -18,7 +18,7 @@
         </div>
 
         <div th:if="${isLogin}" class="navbar-menu">
-            <a th:href="@{/boards/write}">게시글 작성</a>
+            <a th:href="@{/boards}">게시글 목록</a>
             <a th:href="@{/members/me}">마이페이지</a>
 
             <form th:action="@{/members/logout}" method="post" class="inline-form">
@@ -37,7 +37,7 @@
         </div>
 
         <div th:if="${isLogin}" class="button-group">
-            <a th:href="@{/boards/write}" class="btn btn-primary">게시글 작성</a>
+            <a th:href="@{/boards}" class="btn btn-primary">게시글 목록</a>
 
             <a th:href="@{/members/me}" class="btn btn-secondary">마이페이지</a>
 

@@ -13,12 +13,12 @@ import static lombok.AccessLevel.PRIVATE;
 @AllArgsConstructor(access = PRIVATE)
 public class BoardDetailResponse {
     
-    private Long boardId;               // 게시글 ID
-    private String writerNickname;      // 작성자 닉네임
-    private String title;               // 게시글 제목
-    private String content;             // 게시글 내용
-    private BoardCategory category;     // 게시글 카테고리
-    private LocalDateTime createdAt;    // 작성 일시
+    private final Long boardId;               // 게시글 ID
+    private final String writerNickname;      // 작성자 닉네임
+    private final String title;               // 게시글 제목
+    private final String content;             // 게시글 내용
+    private final BoardCategory category;     // 게시글 카테고리
+    private final LocalDateTime createdAt;    // 작성 일시
     
     public static BoardDetailResponse toResponse(final Board board) {
         assert (board != null);

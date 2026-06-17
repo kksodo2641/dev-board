@@ -2,6 +2,7 @@ package com.minseok.devboard.board.controller;
 
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
+import com.minseok.devboard.board.dto.response.BoardListResponse;
 import com.minseok.devboard.board.service.BoardService;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import jakarta.validation.Valid;
@@ -16,12 +17,22 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
+
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/boards")
 public class BoardController {
     
     private final BoardService boardService;
+    
+    @GetMapping
+    public String boardList(final Model model) {
+        final List<BoardListResponse> boardList = boardService.getBoardList();
+        model.addAttribute("boardList", boardList);
+        
+        return resolveView("list");
+    }
     
     @GetMapping("/write")
     public String writeForm(final @LoginMemberId Long memberId,

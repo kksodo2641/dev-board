@@ -3,6 +3,7 @@ package com.minseok.devboard.board.service;
 import com.minseok.devboard.IntegrationTest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
+import com.minseok.devboard.board.dto.response.BoardListResponse;
 import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
@@ -18,6 +19,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
+
+import static com.minseok.devboard.board.entity.BoardCategory.FREE;
+import static com.minseok.devboard.board.entity.BoardCategory.JOB;
+import static com.minseok.devboard.board.entity.BoardCategory.QNA;
+import static com.minseok.devboard.board.entity.BoardCategory.STUDY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -39,7 +46,7 @@ class BoardServiceTest extends IntegrationTest {
         
         final WriteBoardRequest writeBoardRequest = new WriteBoardRequest("title",
                                                                           "content",
-                                                                          BoardCategory.FREE);
+                                                                          FREE);
         
         // when
         final Long boardId = boardService.writeBoard(memberId,
@@ -71,7 +78,7 @@ class BoardServiceTest extends IntegrationTest {
         // given
         final WriteBoardRequest writeBoardRequest = new WriteBoardRequest("title",
                                                                           "content",
-                                                                          BoardCategory.FREE);
+                                                                          FREE);
         
         // when, then
         assertThatThrownBy(() -> boardService.writeBoard(Long.MAX_VALUE, writeBoardRequest))
@@ -87,7 +94,7 @@ class BoardServiceTest extends IntegrationTest {
         
         final WriteBoardRequest writeBoardRequest = new WriteBoardRequest("title",
                                                                           "content",
-                                                                          BoardCategory.FREE);
+                                                                          FREE);
         
         memberService.withdraw(memberId);
         
@@ -154,7 +161,7 @@ class BoardServiceTest extends IntegrationTest {
         final Long memberId = createUser("readBoardSuccess@test.com",
                                          "readBoardSuccess");
         
-        final Long boardId = createBoard(memberId, BoardCategory.QNA);
+        final Long boardId = createBoard(memberId, "title", QNA);
         
         // when
         final BoardDetailResponse response = boardService.readBoard(boardId);
@@ -197,7 +204,7 @@ class BoardServiceTest extends IntegrationTest {
         final Long memberId = createUser("readBoardFailByDeletedBoard@test.com",
                                          "readBoardFailByDeletedBoard");
         
-        final Long boardId = createBoard(memberId, BoardCategory.JOB);
+        final Long boardId = createBoard(memberId, "title", JOB);
         
         // 게시글 삭제
         final Board board = boardRepository.findById(boardId)
@@ -211,6 +218,75 @@ class BoardServiceTest extends IntegrationTest {
                 .isInstanceOf(BoardNotFoundException.class);
     }
     
+    //==게시글 목록 조회==//
+    @Test
+    @DisplayName("게시글 목록 - 정상 조회")
+    void getBoardListSuccess() {
+        // given
+        final Long memberId = createUser("getBoardListSuccess@test.com",
+                                         "getBoardListSuccess");
+        
+        final Long boardId1 = createBoard(memberId, "free title", FREE);
+        final Long boardId2 = createBoard(memberId, "qna title", QNA);
+        final Long boardId3 = createBoard(memberId, "job title", JOB);
+        
+        // when
+        final List<BoardListResponse> boardList = boardService.getBoardList();
+        
+        // then
+        assertThat(boardList).hasSize(3);
+        
+        final BoardListResponse firstBoard = boardList.get(0);
+        final BoardListResponse secondBoard = boardList.get(1);
+        final BoardListResponse thirdBoard = boardList.get(2);
+        
+        assertThat(firstBoard.getBoardId()).isEqualTo(boardId3);
+        assertThat(secondBoard.getBoardId()).isEqualTo(boardId2);
+        assertThat(thirdBoard.getBoardId()).isEqualTo(boardId1);
+        
+        assertThat(firstBoard.getTitle()).isEqualTo("job title");
+        assertThat(firstBoard.getCategory()).isEqualTo(JOB);
+        
+        assertThat(secondBoard.getTitle()).isEqualTo("qna title");
+        assertThat(secondBoard.getCategory()).isEqualTo(QNA);
+        
+        assertThat(thirdBoard.getTitle()).isEqualTo("free title");
+        assertThat(thirdBoard.getCategory()).isEqualTo(FREE);
+    }
+    
+    @Test
+    @DisplayName("게시글 목록 - 삭제된 게시글은 삭제 안내 문구로 조회된다.")
+    void getBoardListWithDeletedBoard() {
+        // given
+        final Long memberId = createUser("getBoardListWithDeletedBoard@test.com",
+                                         "getBoardListWithDeletedBoard");
+        
+        createBoard(memberId, "free title", FREE);
+        final Long toDeleteBoardId = createBoard(memberId, "qna title", QNA);
+        createBoard(memberId, "study title", STUDY);
+        
+        // 게시글 삭제
+        final Board toDeleteBoard = boardRepository.findByIdAndStatus(toDeleteBoardId, BoardStatus.ACTIVE)
+                                                   .orElseThrow();
+        toDeleteBoard.delete();
+        assertThat(toDeleteBoard.getStatus()).isEqualTo(BoardStatus.DELETED);
+        
+        // when
+        final List<BoardListResponse> boardList = boardService.getBoardList();
+        
+        // then
+        assertThat(boardList).hasSize(3);
+        
+        final BoardListResponse deletedBoard =
+                boardList.stream()
+                         .filter(b -> b.getBoardId().equals(toDeleteBoardId))
+                         .findFirst()
+                         .orElseThrow();
+        
+        assertThat(deletedBoard.getTitle())
+                .isEqualTo("삭제된 게시글입니다.");
+    }
+    
     //==편의 메서드==//
     private Long createUser(final String email, final String nickname) {
         return memberService.signup(new SignupRequest(email,
@@ -220,34 +296,18 @@ class BoardServiceTest extends IntegrationTest {
     }
     
     private Long getAdminMemberId() {
-        final String ADMIN_EMAIL = "admin@devboard.com";
         return memberRepository.findByEmail(ADMIN_EMAIL)
                                .orElseThrow()
                                .getId();
     }
     
-    private Long createBoard(final Long memberId, final BoardCategory category) {
+    private Long createBoard(final Long memberId, final String title, final BoardCategory category) {
         assert (memberId != null);
         assert (category != null);
         
         return boardService.writeBoard(memberId,
-                                       new WriteBoardRequest("title",
+                                       new WriteBoardRequest(title,
                                                              "content",
                                                              category));
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
