@@ -13,6 +13,7 @@
         <div class="navbar-logo">Dev Board</div>
 
         <div th:unless="${isLogin}" class="navbar-menu">
+            <a th:href="@{/boards}">게시글 목록</a>
             <a th:href="@{/members/signup}">회원가입</a>
             <a th:href="@{/members/login}">로그인</a>
         </div>
@@ -20,7 +21,6 @@
         <div th:if="${isLogin}" class="navbar-menu">
             <a th:href="@{/boards}">게시글 목록</a>
             <a th:href="@{/members/me}">마이페이지</a>
-
             <form th:action="@{/members/logout}" method="post" class="inline-form">
                 <button type="submit" class="nav-button">로그아웃</button>
             </form>
@@ -32,15 +32,14 @@
         <p class="description">Spring Boot 기반 개발자 커뮤니티 게시판</p>
 
         <div th:unless="${isLogin}" class="button-group">
-            <a th:href="@{/members/signup}" class="btn btn-primary">회원가입</a>
+            <a th:href="@{/boards}" class="btn btn-primary">게시글 목록</a>
+            <a th:href="@{/members/signup}" class="btn btn-success">회원가입</a>
             <a th:href="@{/members/login}" class="btn btn-secondary">로그인</a>
         </div>
 
         <div th:if="${isLogin}" class="button-group">
             <a th:href="@{/boards}" class="btn btn-primary">게시글 목록</a>
-
-            <a th:href="@{/members/me}" class="btn btn-secondary">마이페이지</a>
-
+            <a th:href="@{/members/me}" class="btn btn-success">마이페이지</a>
             <form th:action="@{/members/logout}" method="post">
                 <button type="submit" class="btn btn-secondary">로그아웃</button>
             </form>

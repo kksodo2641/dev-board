@@ -89,6 +89,12 @@ body {
     font-weight: 600;
 
     cursor: pointer;
+
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
 }
 
 .btn-primary {
@@ -116,4 +122,13 @@ body {
 
 .btn-danger:hover {
     background-color: #b91c1c;
+}
+
+.btn-success {
+    background-color: #dbe4f0;
+    color: #1e3a5f;
+}
+
+.btn-success:hover {
+    background-color: #cbd5e1;
 }

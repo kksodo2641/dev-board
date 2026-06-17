@@ -15,9 +15,12 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.SessionAttribute;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
+
+import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
 
 @Controller
 @RequiredArgsConstructor
@@ -27,9 +30,13 @@ public class BoardController {
     private final BoardService boardService;
     
     @GetMapping
-    public String boardList(final Model model) {
+    public String boardList(final @SessionAttribute(value = LOGIN_MEMBER_ID,
+                                                    required = false) Long loginMemberId,
+                            final Model model) {
         final List<BoardListResponse> boardList = boardService.getBoardList();
+        
         model.addAttribute("boardList", boardList);
+        model.addAttribute("isLogin", loginMemberId != null);
         
         return resolveView("list");
     }
