@@ -35,3 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### CUSTOM ###
+/docs/project-handover-v1.md
+/docs/project-handover-v2.md
+/docs/project-handover-v3.md
