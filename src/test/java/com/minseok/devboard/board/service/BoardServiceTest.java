@@ -4,6 +4,7 @@ import com.minseok.devboard.IntegrationTest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardListResponse;
+import com.minseok.devboard.board.dto.response.BoardPageResponse;
 import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
@@ -19,12 +20,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.Comparator;
 import java.util.List;
 
 import static com.minseok.devboard.board.entity.BoardCategory.FREE;
 import static com.minseok.devboard.board.entity.BoardCategory.JOB;
 import static com.minseok.devboard.board.entity.BoardCategory.QNA;
 import static com.minseok.devboard.board.entity.BoardCategory.STUDY;
+import static com.minseok.devboard.board.service.BoardPagingUtils.PAGE_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -287,6 +290,217 @@ class BoardServiceTest extends IntegrationTest {
                 .isEqualTo("삭제된 게시글입니다.");
     }
     
+    //==게시글 페이징 조회==//
+    @Test
+    @DisplayName("게시글이 없으면 1페이지로 조회된다.")
+    void getBoardPageWithoutBoards() {
+        // given
+        // 게시글 X
+        
+        // when
+        final BoardPageResponse pageResponse = boardService.getBoardPage(1);
+        
+        // then
+        assertThat(pageResponse.getTotalCount()).isEqualTo(0);
+        assertThat(pageResponse.getBoardList()).isEmpty();
+        
+        assertThat(pageResponse.getTotalPages()).isEqualTo(1);
+        assertThat(pageResponse.getCurrentPage()).isEqualTo(1);
+        
+        assertThat(pageResponse.getStartPage()).isEqualTo(1);
+        assertThat(pageResponse.getEndPage()).isEqualTo(1);
+        
+        assertThat(pageResponse.hasPrevious()).isFalse();
+        assertThat(pageResponse.hasNext()).isFalse();
+    }
+    
+    @Test
+    @DisplayName("첫 페이지 조회")
+    void getFirstBoardPage() {
+        // given
+        final Long memberId = createUser("getFirstBoardPage@test.com",
+                                         "getFirstBoardPage");
+        
+        final int BOARD_COUNT = 50;
+        createBoards(memberId, BOARD_COUNT);
+        
+        // when
+        final int REQUEST_PAGE = 1; // [1~15] | 16~30 | 31~45 | 46~50
+        final BoardPageResponse pageResponse = boardService.getBoardPage(REQUEST_PAGE);
+        
+        // then
+        assertThat(pageResponse.getTotalCount()).isEqualTo(BOARD_COUNT);
+        
+        assertThat(pageResponse.getBoardList()).hasSize(PAGE_SIZE);
+        
+        assertThat(pageResponse.getBoardList())
+                .extracting(BoardListResponse::getBoardId)
+                .isSortedAccordingTo(Comparator.reverseOrder()); // 최신순(내림차순) 검증
+        
+        assertThat(pageResponse.getTotalPages()).isEqualTo(4);
+        
+        assertThat(pageResponse.getCurrentPage()).isEqualTo(REQUEST_PAGE);
+        
+        assertThat(pageResponse.getStartPage()).isEqualTo(1);
+        assertThat(pageResponse.getEndPage()).isEqualTo(4);
+        
+        assertThat(pageResponse.hasPrevious()).isFalse();
+        assertThat(pageResponse.hasNext()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("마지막 페이지 조회")
+    void getLastBoardPage() {
+        // given
+        final Long memberId = createUser("getLastBoardPage@test.com",
+                                         "getLastBoardPage");
+        final int BOARD_COUNT = 50;
+        createBoards(memberId, BOARD_COUNT);
+        
+        // when
+        final int REQUEST_PAGE = 4; // 1~15 | 16~30 | 31~45 | [46~50]
+        final BoardPageResponse pageResponse = boardService.getBoardPage(REQUEST_PAGE);
+        
+        // then
+        assertThat(pageResponse.getTotalCount()).isEqualTo(BOARD_COUNT);
+        
+        assertThat(pageResponse.getBoardList()).hasSize(5);
+        
+        assertThat(pageResponse.getBoardList())
+                .extracting(BoardListResponse::getBoardId)
+                .isSortedAccordingTo(Comparator.reverseOrder()); // 최신순(내림차순) 검증
+        
+        assertThat(pageResponse.getTotalPages()).isEqualTo(4);
+        assertThat(pageResponse.getCurrentPage()).isEqualTo(REQUEST_PAGE);
+        
+        assertThat(pageResponse.getStartPage()).isEqualTo(1);
+        assertThat(pageResponse.getEndPage()).isEqualTo(4);
+        
+        assertThat(pageResponse.hasPrevious()).isTrue();
+        assertThat(pageResponse.hasNext()).isFalse();
+    }
+    
+    @Test
+    @DisplayName("두 번째 페이지 블록 조회")
+    void getSecondPageBlock() {
+        // given
+        final Long memberId = createUser("getSecondPageBlock@test.com",
+                                         "getSecondPageBlock");
+        final int BOARD_COUNT = 100;
+        createBoards(memberId, BOARD_COUNT);
+        
+        //             block 1                    |      block 2
+        //  (1)    (2)     (3)     (4)     (5)    |     (6)     (7)
+        // 1~15 | 16~30 | 31~45 | 46~60 | 61~75   |   76~90 | 91~100
+        
+        // when - 1
+        final int REQUEST_PAGE_1 = 6;
+        final BoardPageResponse pageResponse1 = boardService.getBoardPage(REQUEST_PAGE_1);
+        
+        // then - 1
+        assertThat(pageResponse1.getTotalCount()).isEqualTo(BOARD_COUNT);
+        assertThat(pageResponse1.getBoardList()).hasSize(PAGE_SIZE);
+        
+        assertThat(pageResponse1.getTotalPages()).isEqualTo(7);
+        assertThat(pageResponse1.getCurrentPage()).isEqualTo(REQUEST_PAGE_1);
+        
+        assertThat(pageResponse1.getStartPage()).isEqualTo(6);
+        assertThat(pageResponse1.getEndPage()).isEqualTo(7);
+        
+        assertThat(pageResponse1.hasPrevious()).isTrue();
+        assertThat(pageResponse1.hasNext()).isTrue();
+        
+        // when - 2
+        final int REQUEST_PAGE_2 = 7;
+        final BoardPageResponse pageResponse2 = boardService.getBoardPage(REQUEST_PAGE_2);
+        
+        // then - 2
+        assertThat(pageResponse2.getTotalCount()).isEqualTo(BOARD_COUNT);
+        
+        assertThat(pageResponse2.getBoardList()).hasSize(10);
+        
+        assertThat(pageResponse2.getTotalPages()).isEqualTo(7);
+        assertThat(pageResponse2.getCurrentPage()).isEqualTo(REQUEST_PAGE_2);
+        
+        assertThat(pageResponse2.getStartPage()).isEqualTo(6);
+        assertThat(pageResponse2.getEndPage()).isEqualTo(7);
+        
+        assertThat(pageResponse2.hasPrevious()).isTrue();
+        assertThat(pageResponse2.hasNext()).isFalse();
+    }
+    
+    @Test
+    @DisplayName("페이지 번호가 1보다 작으면 1페이지로 보정된다.")
+    void clampPageToMinPage() {
+        // given
+        final Long memberId = createUser("clampPageToMinPage@test.com",
+                                         "clampPageToMinPage");
+        
+        final int BOARD_COUNT = 50;
+        createBoards(memberId, BOARD_COUNT);
+        
+        //  (1)    (2)     (3)     (4)
+        // 1~15 | 16~30 | 31~45 | 46~50 |
+        
+        // when
+        final int REQUEST_PAGE = -5;
+        final BoardPageResponse pageResponse = boardService.getBoardPage(REQUEST_PAGE);
+        
+        // then
+        assertThat(pageResponse.getTotalCount()).isEqualTo(BOARD_COUNT);
+        
+        assertThat(pageResponse.getBoardList()).hasSize(PAGE_SIZE);
+        
+        assertThat(pageResponse.getBoardList())
+                .extracting(BoardListResponse::getBoardId)
+                .isSortedAccordingTo(Comparator.reverseOrder());
+        
+        assertThat(pageResponse.getTotalPages()).isEqualTo(4);
+        assertThat(pageResponse.getCurrentPage()).isEqualTo(1);
+        
+        assertThat(pageResponse.getStartPage()).isEqualTo(1);
+        assertThat(pageResponse.getEndPage()).isEqualTo(4);
+        
+        assertThat(pageResponse.hasPrevious()).isFalse();
+        assertThat(pageResponse.hasNext()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("페이지 번호가 전체 페이지 수보다 크면 마지막 페이지로 보정된다.")
+    void clampPageToLastPage() {
+        // given
+        final Long memberId = createUser("clampPageToLastPage@test.com",
+                                         "clampPageToLastPage");
+        
+        final int BOARD_COUNT = 50;
+        createBoards(memberId, BOARD_COUNT);
+        
+        //  (1)    (2)     (3)     (4)
+        // 1~15 | 16~30 | 31~45 | 46~50 |
+        
+        // when
+        final int REQUEST_PAGE = 7;
+        final BoardPageResponse pageResponse = boardService.getBoardPage(REQUEST_PAGE);
+        
+        // then
+        assertThat(pageResponse.getTotalCount()).isEqualTo(BOARD_COUNT);
+        
+        assertThat(pageResponse.getBoardList()).hasSize(5);
+        
+        assertThat(pageResponse.getBoardList())
+                .extracting(BoardListResponse::getBoardId)
+                .isSortedAccordingTo(Comparator.reverseOrder());
+        
+        assertThat(pageResponse.getTotalPages()).isEqualTo(4);
+        assertThat(pageResponse.getCurrentPage()).isEqualTo(4);
+        
+        assertThat(pageResponse.getStartPage()).isEqualTo(1);
+        assertThat(pageResponse.getEndPage()).isEqualTo(4);
+        
+        assertThat(pageResponse.hasPrevious()).isTrue();
+        assertThat(pageResponse.hasNext()).isFalse();
+    }
+    
     //==편의 메서드==//
     private Long createUser(final String email, final String nickname) {
         return memberService.signup(new SignupRequest(email,
@@ -301,7 +515,9 @@ class BoardServiceTest extends IntegrationTest {
                                .getId();
     }
     
-    private Long createBoard(final Long memberId, final String title, final BoardCategory category) {
+    private Long createBoard(final Long memberId,
+                             final String title,
+                             final BoardCategory category) {
         assert (memberId != null);
         assert (category != null);
         
@@ -309,5 +525,16 @@ class BoardServiceTest extends IntegrationTest {
                                        new WriteBoardRequest(title,
                                                              "content",
                                                              category));
+    }
+    
+    private void createBoards(final Long memberId,
+                              final int count) {
+        assert (memberId != null);
+        
+        for (int i = 0; i < count; ++i) {
+            createBoard(memberId,
+                        "title" + i,
+                        FREE);
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.minseok.devboard.board.service;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardListResponse;
+import com.minseok.devboard.board.dto.response.BoardPageResponse;
 import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
@@ -18,6 +19,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
+import static com.minseok.devboard.board.service.BoardPagingUtils.MIN_PAGE;
+import static com.minseok.devboard.board.service.BoardPagingUtils.PAGE_SIZE;
+import static com.minseok.devboard.board.service.BoardPagingUtils.getCurrentPage;
+import static com.minseok.devboard.board.service.BoardPagingUtils.getEndPage;
+import static com.minseok.devboard.board.service.BoardPagingUtils.getStartPage;
+import static com.minseok.devboard.board.service.BoardPagingUtils.getTotalPages;
 
 @Service
 @Transactional(readOnly = true)
@@ -69,6 +77,35 @@ public class BoardService {
         return boardRepository.findAllByOrderByIdDesc().stream()
                               .map(BoardListResponse::toResponse)
                               .toList();
+    }
+    
+    /**
+     * @param page 1-base
+     */
+    public BoardPageResponse getBoardPage(final int page) {
+        final long totalCount = boardRepository.countBoards();
+        
+        final int totalPages = getTotalPages(totalCount);
+        final int currentPage = getCurrentPage(page, totalPages); // 1-base
+        final int startPage = getStartPage(currentPage);          // 1-base
+        final int endPage = getEndPage(startPage, totalPages);    // 1-base
+        
+        final int offset = (currentPage - 1) * PAGE_SIZE; // 0-base
+        final List<BoardListResponse> boardList =
+                boardRepository.findBoardList(offset, PAGE_SIZE).stream()
+                               .map(BoardListResponse::toResponse)
+                               .toList();
+        
+        return BoardPageResponse.of(
+                boardList,
+                currentPage,
+                totalPages,
+                totalCount,
+                startPage,
+                endPage,
+                currentPage > MIN_PAGE,
+                currentPage < totalPages
+        );
     }
     
     public List<BoardCategory> getWritableCategories(final Long memberId) {
