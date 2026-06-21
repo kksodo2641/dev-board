@@ -12,18 +12,18 @@ import static lombok.AccessLevel.PRIVATE;
 @AllArgsConstructor(access = PRIVATE)
 public class BoardPageResponse {
     
-    private final List<BoardListResponse> boardList; // 현재 페이지 게시글 목록
-    private final int currentPage;                   // 현재 페이지 (1-base)
-    private final int totalPages;                    // 전체 페이지 수
-    private final long totalCount;                   // 전체 게시글 수
-    private final int startPage;                     // block 시작 페이지  (1-base)
-    private final int endPage;                       // block 마지막 페이지 (1-base)
+    private final List<BoardListResponse> boardList;
+    private final int currentPage;     // 현재 페이지 (1-base)
+    private final int totalPages;      // 전체 페이지 수
+    private final long totalCount;     // 전체 게시글 수
+    private final int startPage;       // block 시작 페이지  (1-base)
+    private final int endPage;         // block 마지막 페이지 (1-base)
     
-    @Accessors(fluent = true)
-    private final boolean hasPrevious;               // 이전 페이지 존재 여부
+    @Accessors(fluent = true)          // @Getter -> hasPrevious()
+    private final boolean hasPrevious; // 이전 페이지 존재 여부
     
-    @Accessors(fluent = true)
-    private final boolean hasNext;                   // 다음 페이지 존재 여부
+    @Accessors(fluent = true)          // @Getter -> hasNext()
+    private final boolean hasNext;     // 다음 페이지 존재 여부
     
     public static BoardPageResponse of(final List<BoardListResponse> boardList,
                                        final int currentPage,

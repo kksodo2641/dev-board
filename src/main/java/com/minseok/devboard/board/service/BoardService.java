@@ -70,16 +70,6 @@ public class BoardService {
     }
     
     /**
-     * 목록 조회
-     * 향후, 페이징 추가
-     */
-    public List<BoardListResponse> getBoardList() {
-        return boardRepository.findAllByOrderByIdDesc().stream()
-                              .map(BoardListResponse::toResponse)
-                              .toList();
-    }
-    
-    /**
      * @param page 1-base
      */
     public BoardPageResponse getBoardPage(final int page) {

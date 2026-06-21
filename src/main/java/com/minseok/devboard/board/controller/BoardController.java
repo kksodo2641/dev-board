@@ -2,7 +2,7 @@ package com.minseok.devboard.board.controller;
 
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
-import com.minseok.devboard.board.dto.response.BoardListResponse;
+import com.minseok.devboard.board.dto.response.BoardPageResponse;
 import com.minseok.devboard.board.service.BoardService;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import jakarta.validation.Valid;
@@ -15,10 +15,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.SessionAttribute;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-import java.util.List;
 
 import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
 
@@ -29,13 +28,18 @@ public class BoardController {
     
     private final BoardService boardService;
     
+    /**
+     * page(query param): 1-base
+     */
     @GetMapping
-    public String boardList(final @SessionAttribute(value = LOGIN_MEMBER_ID,
-                                                    required = false) Long loginMemberId,
-                            final Model model) {
-        final List<BoardListResponse> boardList = boardService.getBoardList();
+    public String boardList(
+            final @SessionAttribute(value = LOGIN_MEMBER_ID, required = false) Long loginMemberId,
+            final @RequestParam(defaultValue = "1") int page,
+            final Model model) {
         
-        model.addAttribute("boardList", boardList);
+        final BoardPageResponse pageResponse = boardService.getBoardPage(page);
+        
+        model.addAttribute("page", pageResponse);
         model.addAttribute("isLogin", loginMemberId != null);
         
         return resolveView("list");
