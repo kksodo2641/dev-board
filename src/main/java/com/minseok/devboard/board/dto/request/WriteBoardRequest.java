@@ -22,7 +22,7 @@ public class WriteBoardRequest {
     @NotBlank(message = "내용을 입력해주세요.")
     private String content;
     
-    @NotNull(message = "카테고리는 필수입니다.")
+    @NotNull(message = "카테고리를 선택해주세요.")
     private BoardCategory category;
 }
 

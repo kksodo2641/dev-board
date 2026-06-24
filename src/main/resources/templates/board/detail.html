@@ -27,15 +27,13 @@
             </div>
 
             <div>
-                <strong>작성일시</strong>
-                <span th:text="${#temporals.format(board.createdAt, 'yyyy-MM-dd HH:mm')}">
-                작성일시
-            </span>
+                <strong>카테고리</strong>
+                <span th:text="${board.category.description}">카테고리</span>
             </div>
 
             <div>
-                <strong>카테고리</strong>
-                <span th:text="${board.category.description}">카테고리</span>
+                <strong>작성일시</strong>
+                <span th:text="${#temporals.format(board.createdAt, 'yyyy-MM-dd HH:mm')}">작성일시</span>
             </div>
         </div>
 
@@ -47,16 +45,12 @@
 
         <div class="button-group">
             <a th:href="@{/boards}" class="btn btn-primary">목록으로</a>
+
+            <a th:if="${isWriter}" class="btn btn-edit"
+               th:href="@{|/boards/${board.boardId}/edit|}">수정</a>
+
             <a th:href="@{/}" class="btn btn-secondary">홈으로</a>
         </div>
-
-        <!-- 추후 구현 -->
-        <!--
-        <a th:href="@{/boards/{boardId}/edit(boardId=${board.boardId})}"
-           class="btn btn-primary">
-            수정
-        </a>
-        -->
     </div>
 </div> <!--/container-->
 </body>

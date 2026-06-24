@@ -14,6 +14,7 @@ import static lombok.AccessLevel.PRIVATE;
 public class BoardDetailResponse {
     
     private final Long boardId;               // 게시글 ID
+    private final Long writerId;              // 작성자 ID
     private final String writerNickname;      // 작성자 닉네임
     private final String title;               // 게시글 제목
     private final String content;             // 게시글 내용
@@ -24,6 +25,7 @@ public class BoardDetailResponse {
         assert (board != null);
         
         return new BoardDetailResponse(board.getId(),
+                                       board.getWriter().getId(),
                                        board.getWriter().getNickname(),
                                        board.getTitle(),
                                        board.getContent(),

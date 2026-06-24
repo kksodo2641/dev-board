@@ -132,3 +132,12 @@ body {
 .btn-success:hover {
     background-color: #cbd5e1;
 }
+
+.btn-edit {
+    background-color: #16a34a;
+    color: white;
+}
+
+.btn-edit:hover {
+    background-color: #15803d;
+}

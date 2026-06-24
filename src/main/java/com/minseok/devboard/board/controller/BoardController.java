@@ -1,8 +1,10 @@
 package com.minseok.devboard.board.controller;
 
+import com.minseok.devboard.board.dto.request.UpdateBoardRequest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
+import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
 import com.minseok.devboard.board.service.BoardService;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import jakarta.validation.Valid;
@@ -47,7 +49,7 @@ public class BoardController {
     
     @GetMapping("/write")
     public String writeForm(final @LoginMemberId Long memberId,
-                            final @ModelAttribute WriteBoardRequest request,
+                            final @ModelAttribute WriteBoardRequest writeBoardRequest,
                             final Model model) {
         model.addAttribute("categories",
                            boardService.getWritableCategories(memberId));
@@ -56,7 +58,7 @@ public class BoardController {
     
     @PostMapping("/write")
     public String write(final @LoginMemberId Long memberId,
-                        final @Valid @ModelAttribute WriteBoardRequest request,
+                        final @Valid @ModelAttribute WriteBoardRequest writeBoardRequest,
                         final BindingResult bindingResult,
                         final Model model,
                         final RedirectAttributes redirectAttributes) {
@@ -66,19 +68,63 @@ public class BoardController {
             return resolveView("write");
         }
         
-        final Long boardId = boardService.writeBoard(memberId, request);
+        final Long boardId = boardService.writeBoard(memberId, writeBoardRequest);
         redirectAttributes.addAttribute("boardId", boardId);
         
         return "redirect:/boards/{boardId}";
     }
     
     @GetMapping("/{boardId}")
-    public String detail(final @PathVariable Long boardId,
+    public String detail(final @SessionAttribute(name = LOGIN_MEMBER_ID,
+                                                 required = false) Long loginMemberId,
+                         final @PathVariable Long boardId,
                          final Model model) {
         final BoardDetailResponse response = boardService.readBoard(boardId);
+        
+        final boolean isWriter = (loginMemberId != null)
+                && response.getWriterId().equals(loginMemberId);
+        
         model.addAttribute("board", response);
+        model.addAttribute("isWriter", isWriter);
         
         return resolveView("detail");
+    }
+    
+    @GetMapping("/{boardId}/edit")
+    public String editForm(final @LoginMemberId Long loginMemberId,
+                           final @PathVariable Long boardId,
+                           final Model model) {
+        final UpdateBoardResponse response = boardService.getBoardForUpdate(loginMemberId, boardId);
+        
+        final UpdateBoardRequest request = UpdateBoardRequest.from(response);
+        model.addAttribute("updateBoardRequest", request);
+        
+        model.addAttribute("categories",
+                           boardService.getWritableCategories(loginMemberId));
+        
+        model.addAttribute("boardId", boardId);
+        
+        return resolveView("edit");
+    }
+    
+    @PostMapping("/{boardId}/edit")
+    public String edit(final @LoginMemberId Long loginMemberId,
+                       final @PathVariable Long boardId,
+                       final @Valid @ModelAttribute UpdateBoardRequest updateBoardRequest,
+                       final BindingResult bindingResult,
+                       final Model model) {
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("categories",
+                               boardService.getWritableCategories(loginMemberId));
+            
+            model.addAttribute("boardId", boardId);
+            
+            return resolveView("edit");
+        }
+        
+        boardService.updateBoard(loginMemberId, boardId, updateBoardRequest);
+        
+        return "redirect:/boards/{boardId}";
     }
     
     private static String resolveView(final String viewName) {

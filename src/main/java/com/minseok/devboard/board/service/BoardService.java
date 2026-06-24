@@ -37,6 +37,12 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final MemberRepository memberRepository;
     
+    /**
+     * 게시글 작성
+     *
+     * @throws MemberNotFoundException ACTIVE 회원이 존재하지 않는 경우
+     * @throws AccessDeniedException 카테고리 작성 권한이 없는 경우
+     */
     @Transactional
     public Long writeBoard(final Long memberId,
                            final WriteBoardRequest request) {
@@ -58,6 +64,8 @@ public class BoardService {
     
     /**
      * 상세 조회
+     *
+     * @throws BoardNotFoundException ACTIVE 게시글이 존재하지 않는 경우
      */
     public BoardDetailResponse readBoard(final Long boardId) {
         assert (boardId != null);
@@ -68,6 +76,7 @@ public class BoardService {
     
     /**
      * 페이지 조회
+     *
      * @param page 1-base
      */
     public BoardPageResponse getBoardPage(final int page) {
@@ -96,6 +105,13 @@ public class BoardService {
         );
     }
     
+    /**
+     * 게시글 수정 화면 조회
+     *
+     * @throws MemberNotFoundException ACTIVE 회원이 존재하지 않는 경우
+     * @throws BoardNotFoundException ACTIVE 게시글이 존재하지 않는 경우
+     * @throws AccessDeniedException 해당 게시글 작성자가 아닌 경우
+     */
     public UpdateBoardResponse getBoardForUpdate(final Long memberId,
                                                  final Long boardId) {
         assert (memberId != null);
@@ -109,6 +125,13 @@ public class BoardService {
         return UpdateBoardResponse.toResponse(board);
     }
     
+    /**
+     * 게시글 수정
+     *
+     * @throws MemberNotFoundException ACTIVE 회원이 존재하지 않는 경우
+     * @throws BoardNotFoundException ACTIVE 게시글이 존재하지 않는 경우
+     * @throws AccessDeniedException 해당 게시글 작성자가 아니거나, 공지사항 수정 권한이 없는 경우
+     */
     @Transactional
     public void updateBoard(final Long memberId,
                             final Long boardId,
@@ -128,6 +151,11 @@ public class BoardService {
                      request.getCategory());
     }
     
+    /**
+     * 작성 가능한 카테고리 목록 조회
+     *
+     * @throws MemberNotFoundException ACTIVE 회원이 존재하지 않는 경우
+     */
     public List<BoardCategory> getWritableCategories(final Long memberId) {
         assert (memberId != null);
         
@@ -141,7 +169,9 @@ public class BoardService {
     //== private method ==//
     
     /**
-     * @throws MemberNotFoundException if no value present
+     * ACTIVE 회원 조회
+     *
+     * @throws MemberNotFoundException ACTIVE 회원이 존재하지 않는 경우
      */
     private Member findActiveMemberElseThrow(final long memberId) {
         return memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
@@ -149,7 +179,9 @@ public class BoardService {
     }
     
     /**
-     * @throws BoardNotFoundException if no value present
+     * ACTIVE 게시글 조회
+     *
+     * @throws BoardNotFoundException ACTIVE 게시글이 존재하지 않는 경우
      */
     private Board findActiveBoardElseThrow(final long boardId) {
         return boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
@@ -157,7 +189,9 @@ public class BoardService {
     }
     
     /**
-     * @throws AccessDeniedException if member is not writer
+     * 작성자 검증
+     *
+     * @throws AccessDeniedException 해당 게시글 작성자가 아닌 경우
      */
     private static void validateBoardWriter(final Member member, final Board board) {
         assert (member != null);
@@ -172,7 +206,9 @@ public class BoardService {
     }
     
     /**
-     * @throws AccessDeniedException if category is NOTICE but, member is not admin
+     * 카테고리 권한 검증
+     *
+     * @throws AccessDeniedException 카테고리 권한이 없는 경우
      */
     private static void validateWritableCategory(final Member member,
                                                  final BoardCategory category) {

@@ -4,19 +4,18 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" th:href="@{/css/common.css}">
     <link rel="stylesheet" th:href="@{/css/board.css}">
-    <title>게시글 작성</title>
+    <title>게시글 수정</title>
 </head>
 
 <body>
 <div class="container">
-
     <div class="board-card">
         <div class="header">
             <h1>Dev Board</h1>
-            <p>게시글 작성</p>
+            <p>게시글 수정</p>
         </div>
 
-        <form th:object="${writeBoardRequest}" th:action method="post">
+        <form th:object="${updateBoardRequest}" th:action method="post">
 
             <div class="form-group">
                 <label for="category">카테고리</label>
@@ -25,7 +24,8 @@
                     <option value="">카테고리를 선택하세요.</option>
 
                     <option th:each="c : ${categories}"
-                            th:value="${c}" th:text="${c.description}">
+                            th:value="${c}"
+                            th:text="${c.description}">
                     </option>
                 </select>
 
@@ -49,8 +49,8 @@
             </div>
 
             <div class="button-group">
-                <button type="submit" class="btn btn-primary">작성하기</button>
-                <a th:href="@{/boards}" class="btn btn-secondary">취소</a>
+                <button type="submit" class="btn btn-edit">수정하기</button>
+                <a th:href="@{|/boards/${boardId}|}" class="btn btn-secondary">취소</a>
             </div>
         </form>
     </div>

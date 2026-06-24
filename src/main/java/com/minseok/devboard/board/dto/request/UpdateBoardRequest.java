@@ -1,5 +1,6 @@
 package com.minseok.devboard.board.dto.request;
 
+import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
 import com.minseok.devboard.board.entity.BoardCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,4 +25,13 @@ public class UpdateBoardRequest {
     
     @NotNull(message = "카테고리를 선택해주세요.")
     private BoardCategory category;
+    
+    public static UpdateBoardRequest from(final UpdateBoardResponse response) {
+        assert (response != null);
+        
+        return new UpdateBoardRequest(response.getTitle(),
+                                      response.getContent(),
+                                      response.getCategory());
+    }
+    
 }
