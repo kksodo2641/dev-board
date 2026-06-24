@@ -94,8 +94,10 @@ public class Board extends BaseTimeEntity {
         return status == BoardStatus.DELETED;
     }
     
-    public boolean isActive() {
-        return status == BoardStatus.ACTIVE;
+    public boolean isWriter(final Member member) {
+        assert (member != null);
+        return writer.getId()
+                     .equals(member.getId());
     }
     
     //==내부 상태 변경 메서드==//

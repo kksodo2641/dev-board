@@ -15,6 +15,8 @@ import com.minseok.devboard.board.repository.BoardRepository;
 import com.minseok.devboard.global.exception.AccessDeniedException;
 import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.entity.Gender;
+import com.minseok.devboard.member.entity.Member;
+import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.MemberNotFoundException;
 import com.minseok.devboard.member.repository.MemberRepository;
 import com.minseok.devboard.member.service.MemberService;
@@ -610,6 +612,104 @@ class BoardServiceTest extends IntegrationTest {
         
         assertThatThrownBy(() -> boardService.updateBoard(memberId, Long.MAX_VALUE, request))
                 .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    //==게시글 삭제==//
+    
+    @Test
+    @DisplayName("작성자는 게시글을 삭제할 수 있다.")
+    void deleteBoardSuccessByWriter() {
+        // given
+        final long memberId = createUser("user@test.com", "tester");
+        final long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        // when
+        boardService.deleteBoard(memberId, boardId);
+        
+        // then
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow();
+        
+        assertThat(board.isDeleted()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("관리자는 다른 회원의 게시글을 삭제할 수 있다.")
+    void deleteBoardSuccessByAdminMember() {
+        // given
+        final long memberId = createUser("user@test.com", "tester");
+        final long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        // when
+        boardService.deleteBoard(getAdminMemberId(),
+                                 boardId);
+        
+        // then
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow();
+        assertThat(board.isDeleted()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("작성자가 아닌 회원은 게시글을 삭제할 수 없다.")
+    void deleteBoardFailByNotWriter() {
+        // given
+        final long writerId = createUser("writer@test.com", "writer");
+        final long boardId = createBoard(writerId, "title", "content", FREE);
+        
+        // when, then
+        final long notWriterId = createUser("notWriter@test.com", "notWriter");
+        
+        assertThatThrownBy(() -> boardService.deleteBoard(notWriterId, boardId))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글은 다시 삭제할 수 없다.")
+    void deleteBoardFailByDeletedBoard() {
+        // given
+        final long memberId = createUser("user@test.com", "tester");
+        final long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        boardService.deleteBoard(memberId, boardId); // 게시글 삭제
+        
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow();
+        assertThat(board.isDeleted()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(() -> boardService.deleteBoard(memberId, boardId)) // 삭제 게시글 재삭제
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 게시글은 삭제할 수 없다.")
+    void deleteBoardFailByNotFoundBoard() {
+        // given
+        final long memberId = createUser("user@test.com", "tester");
+        
+        // when, then
+        assertThatThrownBy(() -> boardService.deleteBoard(memberId, Long.MAX_VALUE))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("탈퇴한 회원은 게시글을 삭제할 수 없다.")
+    void deleteBoardFailByWithdrawnMember() {
+        // given
+        final long memberId = createUser("user@test.com", "tester");
+        final long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        memberService.withdraw(memberId); // 회원 탈퇴
+        
+        final Member member = memberRepository.findById(memberId)
+                                              .orElseThrow();
+        assertThat(member.getStatus())
+                .isEqualTo(MemberStatus.DELETED);
+        
+        // when, then
+        assertThatThrownBy(() -> boardService.deleteBoard(memberId, boardId))
+                .isInstanceOf(MemberNotFoundException.class);
     }
     
     //==편의 메서드==//

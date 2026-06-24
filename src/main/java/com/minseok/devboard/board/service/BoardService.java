@@ -120,7 +120,7 @@ public class BoardService {
         final Member member = findActiveMemberElseThrow(memberId);
         final Board board = findActiveBoardElseThrow(boardId);
         
-        validateBoardWriter(member, board);
+        validateBoardUpdatePermission(member, board);
         
         return UpdateBoardResponse.toResponse(board);
     }
@@ -143,12 +143,31 @@ public class BoardService {
         final Member member = findActiveMemberElseThrow(memberId);
         final Board board = findActiveBoardElseThrow(boardId);
         
-        validateBoardWriter(member, board);
+        validateBoardUpdatePermission(member, board);
         validateWritableCategory(member, request.getCategory());
         
         board.update(request.getTitle(),
                      request.getContent(),
                      request.getCategory());
+    }
+    
+    /**
+     * 게시글 삭제
+     *
+     * @throws AccessDeniedException 해당 게시글 작성자가 아닌 경우
+     */
+    @Transactional
+    public void deleteBoard(final Long memberId,
+                            final Long boardId) {
+        assert (memberId != null);
+        assert (boardId != null);
+        
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Board board = findActiveBoardElseThrow(boardId);
+        
+        validateBoardDeletePermission(member, board);
+        
+        board.delete();
     }
     
     /**
@@ -188,19 +207,33 @@ public class BoardService {
                               .orElseThrow(BoardNotFoundException::new);
     }
     
+    //==검증 메서드==//
+    
     /**
      * 작성자 검증
      *
-     * @throws AccessDeniedException 해당 게시글 작성자가 아닌 경우
+     * @throws AccessDeniedException 해당 게시글의 작성자가 아닌 경우
      */
-    private static void validateBoardWriter(final Member member, final Board board) {
+    private static void validateBoardUpdatePermission(final Member member, final Board board) {
         assert (member != null);
         assert (board != null);
         
-        final long writerId = board.getWriter().getId();
-        final long memberId = member.getId();
+        if (!board.isWriter(member)) {
+            throw new AccessDeniedException();
+        }
+    }
+    
+    /**
+     * 삭제 권한 검증
+     *
+     * @throws AccessDeniedException 해당 게시글의 작성자가 아니고, 관리자도 아닌 경우
+     */
+    private static void validateBoardDeletePermission(final Member member, final Board board) {
+        assert (member != null);
+        assert (board != null);
         
-        if (writerId != memberId) {
+        if (!member.isAdmin()
+                && !board.isWriter(member)) {
             throw new AccessDeniedException();
         }
     }
