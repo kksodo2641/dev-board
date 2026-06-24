@@ -5,6 +5,7 @@ import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
 import com.minseok.devboard.member.dto.response.MyPageResponse;
 import com.minseok.devboard.member.entity.Member;
+import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.DuplicateEmailException;
 import com.minseok.devboard.member.exception.DuplicateNicknameException;
 import com.minseok.devboard.member.exception.LoginFailedException;
@@ -74,8 +75,7 @@ public class MemberService {
     public void withdraw(final Long memberId) {
         assert (memberId != null);
         
-        final Member member = memberRepository.findByIdAndStatus(memberId, ACTIVE)
-                                              .orElseThrow(MemberNotFoundException::new);
+        final Member member = findActiveMemberElseThrow(memberId);
         member.withdraw();
     }
     
@@ -85,8 +85,7 @@ public class MemberService {
         assert (memberId != null);
         assert (request != null);
         
-        final Member member = memberRepository.findByIdAndStatus(memberId, ACTIVE)
-                                              .orElseThrow(MemberNotFoundException::new);
+        final Member member = findActiveMemberElseThrow(memberId);
         
         final String newNickname = request.getNickname();
         
@@ -96,6 +95,23 @@ public class MemberService {
         
         member.updateProfile(newNickname, request.getGender());
     }
+    
+    //==조회 메서드==//
+    
+    public boolean isAdmin(final Long memberId) {
+        assert (memberId != null);
+        return findActiveMemberElseThrow(memberId).isAdmin();
+    }
+    
+    //==private 메서드==//
+    
+    private Member findActiveMemberElseThrow(final Long memberId) {
+        assert (memberId != null);
+        return memberRepository.findByIdAndStatus(memberId, ACTIVE)
+                               .orElseThrow(MemberNotFoundException::new);
+    }
+    
+    //==검증 메서드==//
     
     private void validateDuplicateEmail(final String email) {
         assert (email != null);

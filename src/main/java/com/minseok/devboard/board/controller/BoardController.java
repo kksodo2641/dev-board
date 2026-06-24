@@ -7,6 +7,7 @@ import com.minseok.devboard.board.dto.response.BoardPageResponse;
 import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
 import com.minseok.devboard.board.service.BoardService;
 import com.minseok.devboard.global.resolver.LoginMemberId;
+import com.minseok.devboard.member.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -29,8 +30,10 @@ import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
 public class BoardController {
     
     private final BoardService boardService;
+    private final MemberService memberService;
     
     /**
+     * 게시글 목록(페이지) 조회
      * page(query param): 1-base
      */
     @GetMapping
@@ -47,6 +50,9 @@ public class BoardController {
         return resolveView("list");
     }
     
+    /**
+     * 게시글 작성 폼
+     */
     @GetMapping("/write")
     public String writeForm(final @LoginMemberId Long memberId,
                             final @ModelAttribute WriteBoardRequest writeBoardRequest,
@@ -56,6 +62,9 @@ public class BoardController {
         return resolveView("write");
     }
     
+    /**
+     * 게시글 작성
+     */
     @PostMapping("/write")
     public String write(final @LoginMemberId Long memberId,
                         final @Valid @ModelAttribute WriteBoardRequest writeBoardRequest,
@@ -74,6 +83,9 @@ public class BoardController {
         return "redirect:/boards/{boardId}";
     }
     
+    /**
+     * 게시글 상세
+     */
     @GetMapping("/{boardId}")
     public String detail(final @SessionAttribute(name = LOGIN_MEMBER_ID,
                                                  required = false) Long loginMemberId,
@@ -81,15 +93,25 @@ public class BoardController {
                          final Model model) {
         final BoardDetailResponse response = boardService.readBoard(boardId);
         
-        final boolean isWriter = (loginMemberId != null)
-                && response.getWriterId().equals(loginMemberId);
+        boolean canEdit = false;
+        boolean canDelete = false;
+        
+        if (loginMemberId != null) {
+            final boolean isWriter = response.getWriterId().equals(loginMemberId);
+            canEdit = isWriter;
+            canDelete = isWriter || memberService.isAdmin(loginMemberId);
+        }
         
         model.addAttribute("board", response);
-        model.addAttribute("isWriter", isWriter);
+        model.addAttribute("canEdit", canEdit);
+        model.addAttribute("canDelete", canDelete);
         
         return resolveView("detail");
     }
     
+    /**
+     * 게시글 수정 폼
+     */
     @GetMapping("/{boardId}/edit")
     public String editForm(final @LoginMemberId Long loginMemberId,
                            final @PathVariable Long boardId,
@@ -107,6 +129,9 @@ public class BoardController {
         return resolveView("edit");
     }
     
+    /**
+     * 게시글 수정
+     */
     @PostMapping("/{boardId}/edit")
     public String edit(final @LoginMemberId Long loginMemberId,
                        final @PathVariable Long boardId,
@@ -125,6 +150,16 @@ public class BoardController {
         boardService.updateBoard(loginMemberId, boardId, updateBoardRequest);
         
         return "redirect:/boards/{boardId}";
+    }
+    
+    /**
+     * 게시글 삭제
+     */
+    @PostMapping("/{boardId}/delete")
+    public String delete(final @LoginMemberId Long loginMemberId,
+                         final @PathVariable Long boardId) {
+        boardService.deleteBoard(loginMemberId, boardId);
+        return "redirect:/boards";
     }
     
     private static String resolveView(final String viewName) {

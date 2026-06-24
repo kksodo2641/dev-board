@@ -46,8 +46,14 @@
         <div class="button-group">
             <a th:href="@{/boards}" class="btn btn-primary">목록으로</a>
 
-            <a th:if="${isWriter}" class="btn btn-edit"
-               th:href="@{|/boards/${board.boardId}/edit|}">수정</a>
+            <a th:if="${canEdit}" class="btn btn-edit"
+               th:href="@{|/boards/${board.boardId}/edit|}">게시글 수정</a>
+
+            <form th:if="${canDelete}" th:action="@{|/boards/${board.boardId}/delete|}" method="post">
+                <button type="submit" onclick="return confirm('정말 삭제하시겠습니까?');"
+                        class="btn btn-danger">게시글 삭제
+                </button>
+            </form>
 
             <a th:href="@{/}" class="btn btn-secondary">홈으로</a>
         </div>
