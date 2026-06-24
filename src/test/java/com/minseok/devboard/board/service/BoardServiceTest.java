@@ -1,10 +1,12 @@
 package com.minseok.devboard.board.service;
 
 import com.minseok.devboard.IntegrationTest;
+import com.minseok.devboard.board.dto.request.UpdateBoardRequest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardListResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
+import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
 import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
@@ -21,12 +23,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Comparator;
-import java.util.List;
 
 import static com.minseok.devboard.board.entity.BoardCategory.FREE;
 import static com.minseok.devboard.board.entity.BoardCategory.JOB;
+import static com.minseok.devboard.board.entity.BoardCategory.NOTICE;
 import static com.minseok.devboard.board.entity.BoardCategory.QNA;
-import static com.minseok.devboard.board.entity.BoardCategory.STUDY;
 import static com.minseok.devboard.board.service.BoardPagingUtils.PAGE_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,8 +45,7 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("ACTIVE 회원은 일반 게시글을 작성할 수 있다.")
     void writeBoardWithActiveMember() {
         // given
-        final Long memberId = createUser("writeBoardWithActiveMember@test.com",
-                                         "writeBoardWithActiveMember");
+        final Long memberId = createUser("user@test.com", "user");
         
         final WriteBoardRequest writeBoardRequest = new WriteBoardRequest("title",
                                                                           "content",
@@ -92,8 +92,7 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("탈퇴한 회원은 게시글을 작성할 수 없다.")
     void writeBoardWithWithdrawalMember() {
         // given
-        final Long memberId = createUser("writeBoardWithWithdrawalMember@test.com",
-                                         "writeBoardWithWithdrawalMember");
+        final Long memberId = createUser("user@test.com", "user");
         
         final WriteBoardRequest writeBoardRequest = new WriteBoardRequest("title",
                                                                           "content",
@@ -110,8 +109,7 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("일반 회원은 공지사항을 작성할 수 없다.")
     void writeNoticeWithNormalMember() {
         // given
-        final Long memberId = createUser("writeNoticeWithNormalMember@test.com",
-                                         "writeNoticeWithNormalMember");
+        final Long memberId = createUser("user@test.com", "user");
         
         final WriteBoardRequest writeBoardRequest = new WriteBoardRequest("title",
                                                                           "content",
@@ -161,10 +159,8 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("게시글 정상 조회")
     void readBoardSuccess() {
         // given
-        final Long memberId = createUser("readBoardSuccess@test.com",
-                                         "readBoardSuccess");
-        
-        final Long boardId = createBoard(memberId, "title", QNA);
+        final Long memberId = createUser("user@test.com", "user");
+        final Long boardId = createBoard(memberId, "title", "content", QNA);
         
         // when
         final BoardDetailResponse response = boardService.readBoard(boardId);
@@ -204,10 +200,10 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("게시글 조회 실패 - 삭제된 게시글")
     void readBoardFailByDeletedBoard() {
         // given
-        final Long memberId = createUser("readBoardFailByDeletedBoard@test.com",
-                                         "readBoardFailByDeletedBoard");
+        final Long memberId = createUser("user@test.com",
+                                         "user");
         
-        final Long boardId = createBoard(memberId, "title", JOB);
+        final Long boardId = createBoard(memberId, "title", "content", JOB);
         
         // 게시글 삭제
         final Board board = boardRepository.findById(boardId)
@@ -249,8 +245,7 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("첫 페이지 조회")
     void getFirstBoardPage() {
         // given
-        final Long memberId = createUser("getFirstBoardPage@test.com",
-                                         "getFirstBoardPage");
+        final Long memberId = createUser("user@test.com", "user");
         
         final int BOARD_COUNT = 50;
         createBoards(memberId, BOARD_COUNT);
@@ -283,8 +278,8 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("마지막 페이지 조회")
     void getLastBoardPage() {
         // given
-        final Long memberId = createUser("getLastBoardPage@test.com",
-                                         "getLastBoardPage");
+        final Long memberId = createUser("user@test.com", "user");
+        
         final int BOARD_COUNT = 50;
         createBoards(memberId, BOARD_COUNT);
         
@@ -315,8 +310,7 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("두 번째 페이지 블록 조회")
     void getSecondPageBlock() {
         // given
-        final Long memberId = createUser("getSecondPageBlock@test.com",
-                                         "getSecondPageBlock");
+        final Long memberId = createUser("user@test.com", "user");
         final int BOARD_COUNT = 100;
         createBoards(memberId, BOARD_COUNT);
         
@@ -364,8 +358,7 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("페이지 번호가 1보다 작으면 1페이지로 보정된다.")
     void clampPageToMinPage() {
         // given
-        final Long memberId = createUser("clampPageToMinPage@test.com",
-                                         "clampPageToMinPage");
+        final Long memberId = createUser("user@test.com", "user");
         
         final int BOARD_COUNT = 50;
         createBoards(memberId, BOARD_COUNT);
@@ -400,8 +393,7 @@ class BoardServiceTest extends IntegrationTest {
     @DisplayName("페이지 번호가 전체 페이지 수보다 크면 마지막 페이지로 보정된다.")
     void clampPageToLastPage() {
         // given
-        final Long memberId = createUser("clampPageToLastPage@test.com",
-                                         "clampPageToLastPage");
+        final Long memberId = createUser("user@test.com", "user");
         
         final int BOARD_COUNT = 50;
         createBoards(memberId, BOARD_COUNT);
@@ -432,6 +424,194 @@ class BoardServiceTest extends IntegrationTest {
         assertThat(pageResponse.hasNext()).isFalse();
     }
     
+    //==게시글 수정 화면 조회==//
+    @Test
+    @DisplayName("작성자는 게시글 수정 화면을 조회할 수 있다.")
+    void getBoardForUpdateSuccess() {
+        // given
+        final Long memberId = createUser("user@test.com", "user");
+        final Long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        // when
+        final UpdateBoardResponse response = boardService.getBoardForUpdate(memberId, boardId);
+        
+        // then
+        assertThat(response.getBoardId()).isEqualTo(boardId);
+        assertThat(response.getTitle()).isEqualTo("title");
+        assertThat(response.getContent()).isEqualTo("content");
+        assertThat(response.getCategory()).isEqualTo(FREE);
+    }
+    
+    @Test
+    @DisplayName("작성자가 아닌 회원은, 게시글 수정 화면을 조회할 수 없다.")
+    void getBoardForUpdateFailByNotWriter() {
+        // given
+        final Long writerId = createUser("writer@test.com", "writer");
+        final Long boardId = createBoard(writerId, "title", "content", FREE);
+        
+        // when, then
+        final Long notWriterId = createUser("notWriter@test.com", "notWriter");
+        
+        assertThatThrownBy(() -> boardService.getBoardForUpdate(notWriterId, boardId))
+                .isInstanceOf(AccessDeniedException.class);
+        
+        assertThatThrownBy(() -> boardService.getBoardForUpdate(getAdminMemberId(), boardId))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글은 수정 화면을 조회할 수 없다.")
+    void getBoardForUpdateFailByDeletedBoard() {
+        // given
+        final Long memberId = createUser("user@test.com", "user");
+        final Long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow();
+        board.delete(); // 게시글 삭제
+        
+        // when, then
+        assertThatThrownBy(() -> boardService.getBoardForUpdate(memberId, boardId))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 게시글은 수정 화면을 조회할 수 없다.")
+    void getBoardForUpdateFailByNotFoundBoard() {
+        // given
+        final Long memberId = createUser("user@test.com", "user");
+        
+        // when, then
+        assertThatThrownBy(() -> boardService.getBoardForUpdate(memberId, Long.MAX_VALUE))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    //==게시글 수정==//
+    @Test
+    @DisplayName("작성자는 게시글을 수정할 수 있다.")
+    void updateBoardSuccess() {
+        // given
+        final Long memberId = createUser("user@test.com", "user");
+        final Long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        // when
+        final String NEW_TITLE = "new title";
+        final String NEW_CONTENT = "new content";
+        final BoardCategory NEW_CATEGORY = JOB;
+        
+        final UpdateBoardRequest request = new UpdateBoardRequest(NEW_TITLE,
+                                                                  NEW_CONTENT,
+                                                                  NEW_CATEGORY);
+        boardService.updateBoard(memberId, boardId, request);
+        
+        // then
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow();
+        
+        assertThat(board.getTitle()).isEqualTo(NEW_TITLE);
+        assertThat(board.getContent()).isEqualTo(NEW_CONTENT);
+        assertThat(board.getCategory()).isEqualTo(NEW_CATEGORY);
+    }
+    
+    @Test
+    @DisplayName("일반 회원은 공지사항으로 수정할 수 없다.")
+    void updateNoticeFailByNormalMember() {
+        // given
+        final Long memberId = createUser("user@test.com", "user");
+        final Long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        // when, then
+        final UpdateBoardRequest request = new UpdateBoardRequest("new title",
+                                                                  "new content",
+                                                                  NOTICE);
+        
+        assertThatThrownBy(() -> boardService.updateBoard(memberId, boardId, request))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+    
+    @Test
+    @DisplayName("관리자는 공지사항으로 수정할 수 있다.")
+    void updateNoticeWithAdminMember() {
+        // given
+        final Long adminMemberId = getAdminMemberId();
+        
+        final Long boardId = createBoard(adminMemberId, "title", "content", FREE);
+        
+        // when
+        final String NEW_TITLE = "new title";
+        final String NEW_CONTENT = "new content";
+        final BoardCategory NEW_CATEGORY = NOTICE;
+        
+        final UpdateBoardRequest request = new UpdateBoardRequest(NEW_TITLE,
+                                                                  NEW_CONTENT,
+                                                                  NEW_CATEGORY);
+        
+        boardService.updateBoard(adminMemberId, boardId, request);
+        
+        // then
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow();
+        
+        assertThat(board.getTitle()).isEqualTo(NEW_TITLE);
+        assertThat(board.getContent()).isEqualTo(NEW_CONTENT);
+        assertThat(board.getCategory()).isEqualTo(NEW_CATEGORY);
+    }
+    
+    @Test
+    @DisplayName("작성자가 아닌 회원은, 게시글을 수정할 수 없다.")
+    void updateBoardFailByNotWriter() {
+        // given
+        final Long writerId = createUser("writer@test.com", "writer");
+        final Long boardId = createBoard(writerId, "title", "content", FREE);
+        
+        // when, then
+        final Long notWriterId = createUser("notWriter@test.com", "notWriter");
+        final UpdateBoardRequest request = new UpdateBoardRequest("new title",
+                                                                  "new content",
+                                                                  JOB);
+        
+        assertThatThrownBy(() -> boardService.updateBoard(notWriterId, boardId, request))
+                .isInstanceOf(AccessDeniedException.class);
+        
+        assertThatThrownBy(() -> boardService.updateBoard(getAdminMemberId(), boardId, request))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글은 수정할 수 없다.")
+    void updateBoardFailByDeletedBoard() {
+        // given
+        final Long memberId = createUser("user@test.com", "user");
+        final Long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow();
+        board.delete(); // 게시글 삭제
+        
+        // when, then
+        final UpdateBoardRequest request = new UpdateBoardRequest("new title",
+                                                                  "new content",
+                                                                  QNA);
+        
+        assertThatThrownBy(() -> boardService.updateBoard(memberId, boardId, request))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 게시글은 수정할 수 없다.")
+    void updateBoardFailByNotFoundBoard() {
+        // given
+        final Long memberId = createUser("user@test.com", "user");
+        
+        // when, then
+        final UpdateBoardRequest request = new UpdateBoardRequest("new title",
+                                                                  "new content",
+                                                                  QNA);
+        
+        assertThatThrownBy(() -> boardService.updateBoard(memberId, Long.MAX_VALUE, request))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
     //==편의 메서드==//
     private Long createUser(final String email, final String nickname) {
         return memberService.signup(new SignupRequest(email,
@@ -448,13 +628,14 @@ class BoardServiceTest extends IntegrationTest {
     
     private Long createBoard(final Long memberId,
                              final String title,
+                             final String content,
                              final BoardCategory category) {
         assert (memberId != null);
         assert (category != null);
         
         return boardService.writeBoard(memberId,
                                        new WriteBoardRequest(title,
-                                                             "content",
+                                                             content,
                                                              category));
     }
     
@@ -465,6 +646,7 @@ class BoardServiceTest extends IntegrationTest {
         for (int i = 0; i < count; ++i) {
             createBoard(memberId,
                         "title" + i,
+                        "content" + i,
                         FREE);
         }
     }

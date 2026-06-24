@@ -1,9 +1,11 @@
 package com.minseok.devboard.board.service;
 
+import com.minseok.devboard.board.dto.request.UpdateBoardRequest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardListResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
+import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
 import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
@@ -41,15 +43,11 @@ public class BoardService {
         assert (memberId != null);
         assert (request != null);
         
-        final Member writer = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
-                                              .orElseThrow(MemberNotFoundException::new);
+        final Member member = findActiveMemberElseThrow(memberId);
         
-        if (!request.getCategory()
-                    .canWrite(writer.getRole())) {
-            throw new AccessDeniedException();
-        }
+        validateWritableCategory(member, request.getCategory());
         
-        final Board board = Board.create(writer,
+        final Board board = Board.create(member,
                                          request.getTitle(),
                                          request.getContent(),
                                          request.getCategory());
@@ -64,12 +62,12 @@ public class BoardService {
     public BoardDetailResponse readBoard(final Long boardId) {
         assert (boardId != null);
         
-        return boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
-                              .map(BoardDetailResponse::toResponse)
-                              .orElseThrow(BoardNotFoundException::new);
+        final Board board = findActiveBoardElseThrow(boardId);
+        return BoardDetailResponse.toResponse(board);
     }
     
     /**
+     * 페이지 조회
      * @param page 1-base
      */
     public BoardPageResponse getBoardPage(final int page) {
@@ -98,31 +96,91 @@ public class BoardService {
         );
     }
     
+    public UpdateBoardResponse getBoardForUpdate(final Long memberId,
+                                                 final Long boardId) {
+        assert (memberId != null);
+        assert (boardId != null);
+        
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Board board = findActiveBoardElseThrow(boardId);
+        
+        validateBoardWriter(member, board);
+        
+        return UpdateBoardResponse.toResponse(board);
+    }
+    
+    @Transactional
+    public void updateBoard(final Long memberId,
+                            final Long boardId,
+                            final UpdateBoardRequest request) {
+        assert (memberId != null);
+        assert (boardId != null);
+        assert (request != null);
+        
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Board board = findActiveBoardElseThrow(boardId);
+        
+        validateBoardWriter(member, board);
+        validateWritableCategory(member, request.getCategory());
+        
+        board.update(request.getTitle(),
+                     request.getContent(),
+                     request.getCategory());
+    }
+    
     public List<BoardCategory> getWritableCategories(final Long memberId) {
         assert (memberId != null);
         
-        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
-                                              .orElseThrow(MemberNotFoundException::new);
+        final Member member = findActiveMemberElseThrow(memberId);
         
         return member.isAdmin()
                ? List.of(BoardCategory.values())
                : BoardCategory.userCategories();
     }
+    
+    //== private method ==//
+    
+    /**
+     * @throws MemberNotFoundException if no value present
+     */
+    private Member findActiveMemberElseThrow(final long memberId) {
+        return memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
+                               .orElseThrow(MemberNotFoundException::new);
+    }
+    
+    /**
+     * @throws BoardNotFoundException if no value present
+     */
+    private Board findActiveBoardElseThrow(final long boardId) {
+        return boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
+                              .orElseThrow(BoardNotFoundException::new);
+    }
+    
+    /**
+     * @throws AccessDeniedException if member is not writer
+     */
+    private static void validateBoardWriter(final Member member, final Board board) {
+        assert (member != null);
+        assert (board != null);
+        
+        final long writerId = board.getWriter().getId();
+        final long memberId = member.getId();
+        
+        if (writerId != memberId) {
+            throw new AccessDeniedException();
+        }
+    }
+    
+    /**
+     * @throws AccessDeniedException if category is NOTICE but, member is not admin
+     */
+    private static void validateWritableCategory(final Member member,
+                                                 final BoardCategory category) {
+        assert (member != null);
+        assert (category != null);
+        
+        if (!category.canWrite(member)) {
+            throw new AccessDeniedException();
+        }
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

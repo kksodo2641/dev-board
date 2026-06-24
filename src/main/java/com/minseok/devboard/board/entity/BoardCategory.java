@@ -1,6 +1,6 @@
 package com.minseok.devboard.board.entity;
 
-import com.minseok.devboard.member.entity.Role;
+import com.minseok.devboard.member.entity.Member;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -24,20 +24,10 @@ public enum BoardCategory {
                      .toList();
     }
     
-    public boolean canWrite(final Role role) {
-        assert (role != null);
+    public boolean canWrite(final Member member) {
+        assert (member != null);
         
-        return (role == Role.ADMIN)
-                || (this != NOTICE);
+        return member.isAdmin()
+                || this != NOTICE;
     }
 }
-
-
-
-
-
-
-
-
-
-
