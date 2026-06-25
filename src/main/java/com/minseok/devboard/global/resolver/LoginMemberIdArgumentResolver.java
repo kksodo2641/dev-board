@@ -51,20 +51,3 @@ public class LoginMemberIdArgumentResolver implements HandlerMethodArgumentResol
         return loginMemberId;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

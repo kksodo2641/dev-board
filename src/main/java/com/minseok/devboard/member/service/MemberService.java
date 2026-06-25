@@ -5,7 +5,6 @@ import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
 import com.minseok.devboard.member.dto.response.MyPageResponse;
 import com.minseok.devboard.member.entity.Member;
-import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.DuplicateEmailException;
 import com.minseok.devboard.member.exception.DuplicateNicknameException;
 import com.minseok.devboard.member.exception.LoginFailedException;
@@ -129,20 +128,3 @@ public class MemberService {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

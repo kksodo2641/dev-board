@@ -167,20 +167,3 @@ public class BoardController {
         return "board/" + viewName;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

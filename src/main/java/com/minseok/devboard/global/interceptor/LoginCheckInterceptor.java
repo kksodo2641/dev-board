@@ -62,20 +62,3 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
         return URLEncoder.encode(redirectURL, StandardCharsets.UTF_8);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

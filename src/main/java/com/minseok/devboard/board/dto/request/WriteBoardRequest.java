@@ -25,20 +25,3 @@ public class WriteBoardRequest {
     @NotNull(message = "카테고리를 선택해주세요.")
     private BoardCategory category;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
