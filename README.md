@@ -2,11 +2,11 @@
 
 Spring Boot 기반 실무형 개발자 커뮤니티 게시판
 
-Dev Board는 단순 CRUD 구현을 넘어, 실제 서비스에서 고려해야 하는 설계 원칙과 아키텍처를 학습하고 적용하기 위해 개발 중인 포트폴리오 프로젝트이다.
+Dev Board는 단순 CRUD 구현을 넘어, 실제 서비스에서 고려해야 하는 설계 원칙과 아키텍처를 학습하고 적용하기 위해 개발 중인 프로젝트이다.
 
 ---
 
-# Project Goals
+# 프로젝트 목표
 
 - 계층 간 역할과 책임 분리
 - DTO 기반 계층 분리
@@ -20,7 +20,7 @@ Dev Board는 단순 CRUD 구현을 넘어, 실제 서비스에서 고려해야 �
 
 ---
 
-# Tech Stack
+# 기술 스택
 
 ### Backend
 
@@ -50,24 +50,24 @@ Dev Board는 단순 CRUD 구현을 넘어, 실제 서비스에서 고려해야 �
 
 ---
 
-# Implemented Features
+# 구현 기능
 
 ## Member
 
-### Authentication
+### 인증(Authentication)
 
 - 회원가입
 - 로그인
 - 로그아웃
 - 세션 기반 인증
 
-### MyPage
+### 마이페이지
 
 - 회원정보 조회
 - 회원정보 수정
 - 회원탈퇴
 
-### Authorization
+### 권한(Authorization)
 
 - 사용자(USER)
 - 관리자(ADMIN)
@@ -99,9 +99,19 @@ Dev Board는 단순 CRUD 구현을 넘어, 실제 서비스에서 고려해야 �
 - 페이지 블록 계산
 - Clamp 기반 페이지 보정
 
+### Update
+
+- 게시글 수정
+- 작성자 수정 권한 정책 적용
+
+### Delete
+
+- 게시글 삭제
+- 작성자 및 관리자 삭제 권한 정책 적용
+
 ---
 
-# Architecture Highlights
+# 아키텍처 특징
 
 ## DTO 기반 계층 분리
 
@@ -135,7 +145,9 @@ Controller는 요청/응답 처리에 집중한다.
 
 - ACTIVE 회원 검증
 - 게시글 작성 권한 검증
-- 공지사항 작성 권한 검증
+- 게시글 수정 권한 검증
+- 게시글 삭제 권한 검증
+- 공지사항 작성/수정 권한 검증
 
 ---
 
@@ -209,7 +221,18 @@ GlobalExceptionHandler를 통해 예외 처리 정책을 통합한다.
 
 ---
 
-# Test Strategy
+## 권한 정책
+
+게시글 수정과 삭제는 서로 다른 권한 정책을 적용하였다.
+
+- 수정: 작성자만 가능
+- 삭제: 작성자 또는 관리자 가능
+
+자세한 설계 배경은 Architecture Decisions 문서를 참고한다.
+
+---
+
+# 테스트 전략
 
 Dev Board는 기능 검증보다 비즈니스 규칙 검증에 초점을 둔다.
 
@@ -218,6 +241,7 @@ Dev Board는 기능 검증보다 비즈니스 규칙 검증에 초점을 둔다.
 - 회원가입 중복 검증
 - 로그인 정책 검증
 - 공지사항 작성 권한 검증
+- 게시글 수정/삭제 권한 검증
 - 게시글 페이징 정책 검증
 - 페이지 보정(clamp) 정책 검증
 
@@ -225,7 +249,7 @@ Dev Board는 기능 검증보다 비즈니스 규칙 검증에 초점을 둔다.
 
 ---
 
-# Development Process
+# 개발 프로세스
 
 Dev Board는 다음 순서로 기능을 구현한다.
 
@@ -235,12 +259,13 @@ Dev Board는 다음 순서로 기능을 구현한다.
 4. Service Test 작성
 5. Controller 작성
 6. View 작성
+7. 브라우저 수동 테스트
 
 구현보다 설계와 테스트를 우선한다.
 
 ---
 
-# Current Status
+# 현재 진행 상황
 
 ### 구현 완료
 
@@ -252,7 +277,7 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - 회원정보 수정
 - 회원탈퇴
 
-#### Authentication & Authorization
+#### 인증 & 권한
 
 - LoginCheckInterceptor
 - LoginMemberId ArgumentResolver
@@ -266,8 +291,10 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - 게시글 목록 조회
 - 비로그인 사용자 게시글 조회 허용
 - 게시글 페이징
+- 게시글 수정
+- 게시글 삭제
 
-#### Infrastructure
+#### 공통 인프라
 
 - GlobalExceptionHandler
 - 테스트 DB 분리
@@ -279,33 +306,23 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 #### Board
 
-- 게시글 수정
-- 게시글 삭제
+- 게시글 조회수
+- 공지사항 최상단 노출
 
-#### Community
+#### 커뮤니티
 
 - 댓글 기능
 - 게시글 좋아요 기능
 
-#### File
+#### 파일
 
 - 파일 업로드 기능
 
-#### Refactoring
+#### 리팩토링
 
 - Spring Data JPA Page/Pageable 기반 페이징 리팩토링 및 비교 분석
 
 
-
-[//]: # (## 아키텍처)
-
-[//]: # ()
-[//]: # (## 패키지 구조)
-
-[//]: # ()
-[//]: # (## ERD)
-
-[//]: # ()
 [//]: # (## 실행 방법)
 
 ---
@@ -319,9 +336,7 @@ Dev Board는 다음 순서로 기능을 구현한다.
   - 데이터베이스 스키마, 관계 및 ERD 정의
 
 - [Architecture Decisions](./docs/architecture-decisions.md)
-  - 주요 아키텍처 설계 의사결정 정의
+  - 주요 아키텍처 설계 의사결정 기록
 
 - [Project Progress](./docs/project-progress.md)
   - 현재 프로젝트 진행 현황 및 개발 계획
-
-[//]: # (- [architecture-decisions])

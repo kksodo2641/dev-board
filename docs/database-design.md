@@ -254,9 +254,7 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
   - 도메인 모델 및 비즈니스 규칙 정의
 
 - [Architecture Decisions](./architecture-decisions.md)
-  - 주요 아키텍처 설계 의사결정 정의
+  - 주요 아키텍처 설계 의사결정 기록
 
 - [Project Progress](./project-progress.md)
   - 현재 프로젝트 진행 현황 및 개발 계획
-
-
