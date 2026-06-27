@@ -20,6 +20,7 @@ public class BoardDetailResponse {
     private final String content;             // 게시글 내용
     private final BoardCategory category;     // 게시글 카테고리
     private final LocalDateTime createdAt;    // 작성 일시
+    private final long viewCount;
     
     public static BoardDetailResponse toResponse(final Board board) {
         assert (board != null);
@@ -30,6 +31,7 @@ public class BoardDetailResponse {
                                        board.getTitle(),
                                        board.getContent(),
                                        board.getCategory(),
-                                       board.getCreatedAt());
+                                       board.getCreatedAt(),
+                                       board.getViewCount());
     }
 }

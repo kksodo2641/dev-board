@@ -43,6 +43,7 @@ class BoardServiceTest extends IntegrationTest {
     @Autowired BoardRepository boardRepository;
     
     //==게시글 작성==//
+    
     @Test
     @DisplayName("ACTIVE 회원은 일반 게시글을 작성할 수 있다.")
     void writeBoardWithActiveMember() {
@@ -157,6 +158,7 @@ class BoardServiceTest extends IntegrationTest {
     }
     
     //==게시글 조회==//
+    
     @Test
     @DisplayName("게시글 정상 조회")
     void readBoardSuccess() {
@@ -219,7 +221,59 @@ class BoardServiceTest extends IntegrationTest {
                 .isInstanceOf(BoardNotFoundException.class);
     }
     
+    //==게시글 조회수 증가==//
+    
+    @Test
+    @DisplayName("조회수 증가 성공")
+    void increaseViewCountSuccess() {
+        // given
+        final long memberId = createUser("user@test.com", "user");
+        final long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        final Board board = boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
+                                           .orElseThrow();
+        
+        assertThat(board.getViewCount()).isZero();
+        
+        // when
+        boardService.increaseViewCount(boardId);
+        
+        // then
+        assertThat(board.getViewCount()).isOne();
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 게시글은 조회수를 증가할 수 없다.")
+    void increaseViewCountFailByNotFoundBoard() {
+        // when, then
+        assertThatThrownBy(() -> boardService.increaseViewCount(Long.MAX_VALUE))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글은 조회수를 증가할 수 없다.")
+    void increaseViewCountFailByDeletedBoard() {
+        // given
+        final long memberId = createUser("user@test.com", "user");
+        final long boardId = createBoard(memberId, "title", "content", FREE);
+        
+        final Board board = boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
+                                           .orElseThrow();
+        
+        assertThat(board.getViewCount()).isZero();
+        
+        board.delete();
+        assertThat(board.isDeleted()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(() -> boardService.increaseViewCount(boardId))
+                .isInstanceOf(BoardNotFoundException.class);
+        
+        assertThat(board.getViewCount()).isZero();
+    }
+    
     //==게시글 페이징 조회==//
+    
     @Test
     @DisplayName("게시글이 없으면 1페이지로 조회된다.")
     void getBoardPageWithoutBoards() {
@@ -427,6 +481,7 @@ class BoardServiceTest extends IntegrationTest {
     }
     
     //==게시글 수정 화면 조회==//
+    
     @Test
     @DisplayName("작성자는 게시글 수정 화면을 조회할 수 있다.")
     void getBoardForUpdateSuccess() {
@@ -489,6 +544,7 @@ class BoardServiceTest extends IntegrationTest {
     }
     
     //==게시글 수정==//
+    
     @Test
     @DisplayName("작성자는 게시글을 수정할 수 있다.")
     void updateBoardSuccess() {
@@ -713,6 +769,7 @@ class BoardServiceTest extends IntegrationTest {
     }
     
     //==편의 메서드==//
+    
     private Long createUser(final String email, final String nickname) {
         return memberService.signup(new SignupRequest(email,
                                                       "password123",

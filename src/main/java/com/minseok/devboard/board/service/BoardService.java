@@ -75,6 +75,19 @@ public class BoardService {
     }
     
     /**
+     * 게시글 조회수 증가
+     *
+     * @throws BoardNotFoundException ACTIVE 게시글이 존재하지 않는 경우
+     */
+    @Transactional
+    public void increaseViewCount(final Long boardId) {
+        assert (boardId != null);
+        
+        final Board board = findActiveBoardElseThrow(boardId);
+        board.increaseViewCount();
+    }
+    
+    /**
      * 페이지 조회
      *
      * @param page 1-base

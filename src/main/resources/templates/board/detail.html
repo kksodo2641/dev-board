@@ -35,6 +35,11 @@
                 <strong>작성일시</strong>
                 <span th:text="${#temporals.format(board.createdAt, 'yyyy-MM-dd HH:mm')}">작성일시</span>
             </div>
+
+            <div>
+                <strong>조회수</strong>
+                <span th:text="${board.viewCount}">카테고리</span>
+            </div>
         </div>
 
         <div class="board-content">
