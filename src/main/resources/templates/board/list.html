@@ -43,9 +43,11 @@
 
                     <td class="title-column">
                         <a th:href="@{|/boards/${board.boardId}|}"
-                           th:text="${board.title}"
-                           th:classappend="${board.deleted} ? 'deleted-board' : ''">
-                            게시글 제목
+                           th:classappend="${board.deleted ? 'deleted-board'
+                                        : (board.category.name() == 'NOTICE' ? 'notice-title' : '')}">
+
+                            <span th:if="${board.category.name() == 'NOTICE'}" class="notice-label">[공지]</span>
+                            <span th:text="${board.title}">게시글 제목</span>
                         </a>
                     </td>
 

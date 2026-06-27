@@ -99,6 +99,11 @@
     text-decoration: none;
 }
 
+.title-column a.notice-title {
+    color: #dc2626;
+    font-weight: 700;
+}
+
 .title-column a:hover {
     text-decoration: underline;
 }
@@ -166,3 +171,10 @@
     border-color: #2563eb;
     font-weight: 600;
 }
+
+.notice-label {
+    color: #dc2626;
+    font-weight: 700;
+    margin-right: 6px;
+}
+
