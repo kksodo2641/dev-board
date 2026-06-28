@@ -2,8 +2,9 @@
 <html xmlns:th="https://www.thymeleaf.org" lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>마이페이지</title>
+    <link rel="stylesheet" th:href="@{/css/common.css}">
     <link rel="stylesheet" th:href="@{/css/member.css}">
+    <title>마이페이지</title>
 </head>
 
 <body>
@@ -16,27 +17,27 @@
 
         <div class="form-group">
             <label>이메일</label>
-            <input type="text" th:value="${myPageResponse.email}" readonly>
+            <input type="text" th:value="${member.email}" readonly>
         </div>
         <div class="form-group">
             <label>닉네임</label>
-            <input type="text" th:value="${myPageResponse.nickname}" readonly>
+            <input type="text" th:value="${member.nickname}" readonly>
         </div>
         <div class="form-group">
             <label>성별</label>
-            <input type="text" th:value="${myPageResponse.gender.description}" readonly>
+            <input type="text" th:value="${member.gender.description}" readonly>
         </div>
         <div class="form-group">
             <label>권한</label>
-            <input type="text" th:value="${myPageResponse.role.description}" readonly>
+            <input type="text" th:value="${member.role.description}" readonly>
         </div>
         <div class="form-group">
             <label>회원 상태</label>
-            <input type="text" th:value="${myPageResponse.status.description}" readonly>
+            <input type="text" th:value="${member.status.description}" readonly>
         </div>
         <div class="form-group">
             <label>가입일</label>
-            <input type="text" th:value="${#temporals.format(myPageResponse.createdAt, 'yyyy-MM-dd')}" readonly>
+            <input type="text" th:value="${#temporals.format(member.createdAt, 'yyyy-MM-dd')}" readonly>
         </div>
 
         <div class="button-group">
@@ -53,10 +54,3 @@
 </div> <!--/container-->
 </body>
 </html>
-
-
-
-
-
-
-

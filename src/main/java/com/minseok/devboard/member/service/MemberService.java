@@ -5,7 +5,6 @@ import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.dto.request.UpdateMemberRequest;
 import com.minseok.devboard.member.dto.response.MyPageResponse;
 import com.minseok.devboard.member.entity.Member;
-import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.DuplicateEmailException;
 import com.minseok.devboard.member.exception.DuplicateNicknameException;
 import com.minseok.devboard.member.exception.LoginFailedException;
@@ -15,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static com.minseok.devboard.member.entity.MemberStatus.ACTIVE;
 
 @Service
 @Transactional(readOnly = true)
@@ -37,11 +38,13 @@ public class MemberService {
         validateDuplicateEmail(request.getEmail());
         validateDuplicateNickname(request.getNickname());
         
-        final Member savedMember = memberRepository.save(Member.createMember(request.getEmail(),
-                                                                             passwordEncoder.encode(request.getPassword()),
-                                                                             request.getNickname(),
-                                                                             request.getGender()));
-        return savedMember.getId();
+        final Member member = Member.create(request.getEmail(),
+                                            passwordEncoder.encode(request.getPassword()),
+                                            request.getNickname(),
+                                            request.getGender());
+        
+        return memberRepository.save(member)
+                               .getId();
     }
     
     public Long login(final LoginRequest request) {
@@ -50,7 +53,7 @@ public class MemberService {
         final Member foundMember = memberRepository.findByEmail(request.getEmail())
                                                    .orElseThrow(LoginFailedException::new);
         
-        if (foundMember.getStatus() != MemberStatus.ACTIVE
+        if (foundMember.getStatus() != ACTIVE
                 || !passwordEncoder.matches(request.getPassword(),
                                             foundMember.getPasswordHash())) {
             throw new LoginFailedException();
@@ -62,13 +65,8 @@ public class MemberService {
     public MyPageResponse getMyPage(final Long memberId) {
         assert (memberId != null);
         
-        return memberRepository.findById(memberId)
-                               .map(m -> new MyPageResponse(m.getEmail(),
-                                                            m.getNickname(),
-                                                            m.getGender(),
-                                                            m.getRole(),
-                                                            m.getStatus(),
-                                                            m.getCreatedAt()))
+        return memberRepository.findByIdAndStatus(memberId, ACTIVE)
+                               .map(MyPageResponse::toResponse)
                                .orElseThrow(MemberNotFoundException::new);
     }
     
@@ -76,8 +74,7 @@ public class MemberService {
     public void withdraw(final Long memberId) {
         assert (memberId != null);
         
-        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
-                                              .orElseThrow(MemberNotFoundException::new);
+        final Member member = findActiveMemberElseThrow(memberId);
         member.withdraw();
     }
     
@@ -87,8 +84,7 @@ public class MemberService {
         assert (memberId != null);
         assert (request != null);
         
-        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
-                                              .orElseThrow(MemberNotFoundException::new);
+        final Member member = findActiveMemberElseThrow(memberId);
         
         final String newNickname = request.getNickname();
         
@@ -98,6 +94,23 @@ public class MemberService {
         
         member.updateProfile(newNickname, request.getGender());
     }
+    
+    //==조회 메서드==//
+    
+    public boolean isAdmin(final Long memberId) {
+        assert (memberId != null);
+        return findActiveMemberElseThrow(memberId).isAdmin();
+    }
+    
+    //==private 메서드==//
+    
+    private Member findActiveMemberElseThrow(final Long memberId) {
+        assert (memberId != null);
+        return memberRepository.findByIdAndStatus(memberId, ACTIVE)
+                               .orElseThrow(MemberNotFoundException::new);
+    }
+    
+    //==검증 메서드==//
     
     private void validateDuplicateEmail(final String email) {
         assert (email != null);
@@ -115,20 +128,3 @@ public class MemberService {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

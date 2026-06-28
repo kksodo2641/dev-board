@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="https://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    <link rel="stylesheet" th:href="@{/css/board.css}">
+    <title>게시글 목록</title>
+</head>
+
+<body>
+<div class="container">
+    <div class="board-list-container">
+
+        <div class="header">
+            <h1>Dev Board</h1>
+            <p>게시글 목록</p>
+        </div>
+
+        <table class="board-list">
+            <thead>
+                <tr>
+                    <th>번호</th>
+                    <th>카테고리</th>
+                    <th>제목</th>
+                    <th>작성자</th>
+                    <th>작성일시</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr th:if="${#lists.isEmpty(page.boardList)}">
+                    <td colspan="5" class="empty-message">
+                        게시글이 없습니다.
+                    </td>
+                </tr>
+
+                <tr th:each="board : ${page.boardList}">
+                    <td th:text="${board.boardId}">1</td>
+
+                    <td th:text="${board.category.description}">
+                        카테고리
+                    </td>
+
+                    <td class="title-column">
+                        <a th:href="@{|/boards/${board.boardId}|}"
+                           th:classappend="${board.deleted ? 'deleted-board'
+                                        : (board.category.name() == 'NOTICE' ? 'notice-title' : '')}">
+
+                            <span th:if="${board.category.name() == 'NOTICE'}" class="notice-label">[공지]</span>
+                            <span th:text="${board.title}">게시글 제목</span>
+                        </a>
+                    </td>
+
+                    <td th:text="${board.writerNickname}">
+                        작성자
+                    </td>
+
+                    <td th:text="${#temporals.format(board.createdAt, 'yyyy-MM-dd')}">
+                        작성일시
+                    </td>
+                </tr>
+
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            <a th:if="${page.hasPrevious()}" class="page-link"
+               th:href="@{/boards(page=${page.currentPage - 1})}">이전</a>
+
+            <th:block th:each="pageNum : ${#numbers.sequence(page.startPage, page.endPage)}">
+                <a th:href="@{/boards(page=${pageNum})}"
+                   class="page-link" th:classappend="${pageNum == page.currentPage} ? 'current-page' : ''"
+                   th:text="${pageNum}">
+                    페이지 번호 목록
+                </a>
+            </th:block>
+
+            <a th:if="${page.hasNext()}" class="page-link"
+               th:href="@{/boards(page=${page.currentPage + 1})}">다음</a>
+        </div>
+
+        <div class="button-group">
+            <a th:if="${isLogin}" th:href="@{/boards/write}" class="btn btn-primary">글쓰기</a>
+            <a th:href="@{/}" class="btn btn-secondary">홈으로</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

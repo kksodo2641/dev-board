@@ -18,20 +18,3 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     
     boolean existsByIdAndStatus(Long id, MemberStatus memberStatus);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

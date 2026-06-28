@@ -18,7 +18,7 @@ create table member
         CHECK ((char_length(nickname) between 2 and 30))
 );
 
---------------------------------------------------
+-- ------------------------------------------------
 
 create table board
 (
@@ -37,7 +37,7 @@ create table board
             references member (member_id)
 );
 
-------------------------------------------------------
+-- ----------------------------------------------------
 
 create table comment
 (
@@ -63,7 +63,7 @@ create table comment
             references comment (comment_id)
 );
 
-------------------------------------------------------
+-- ----------------------------------------------------
 
 create table board_like
 (
@@ -85,7 +85,7 @@ create table board_like
         unique (board_id, member_id)
 );
 
-------------------------------------------------------
+-- ----------------------------------------------------
 
 create table upload_file
 (

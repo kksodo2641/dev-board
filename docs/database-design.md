@@ -2,9 +2,13 @@
 
 ## 개요
 
-본 문서는 dev-board 프로젝트의 **데이터베이스 구조를 정의**하기 위한 문서이다.
+본 문서는 Dev Board 프로젝트의 데이터베이스 관점의 설계 문서이다.
 
-**각 테이블의 컬럼 및 제약조건을 정의하며, 테이블 간 관계를 명시**한다.
+각 테이블의 컬럼 및 제약조건을 정의하며, 테이블 간 관계를 명시한다.
+
+도메인 규칙 및 비즈니스 정책은 [Domain Design](./domain-design.md) 문서를 따르며,
+
+주요 아키텍처 설계 의사결정은 [Architecture Decisions](./architecture-decisions.md) 문서를 따른다.
 
 ---
 
@@ -14,7 +18,9 @@
 
 #### 설명
 
-**회원 정보**를 저장하는 테이블
+**회원** 정보를 저장하는 테이블
+
+Soft Delete 정책을 적용하며, 탈퇴 회원 정보는 물리 삭제하지 않는다.
 
 #### 컬럼 및 제약조건
 
@@ -34,7 +40,9 @@
 
 #### 설명
 
-**게시글 정보**를 저장하는 테이블
+**게시글** 정보를 저장하는 테이블
+
+Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지된다.
 
 #### 컬럼 및 제약조건
 
@@ -45,8 +53,8 @@
 | title      | VARCHAR(100) | NOT NULL                                                                      | 제목        |
 | content    | TEXT         | NOT NULL                                                                      | 본문        |
 | category   | VARCHAR(20)  | NOT NULL,<br/> CHECK(category IN ('NOTICE', 'FREE', 'QNA', 'STUDY', 'JOB'))   | 게시판 카테고리  |
-| view_count | INT          | NOT NULL, DEFAULT 0                                                           | 조회수       |
 | status     | VARCHAR(20)  | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE' | 상태        |
+| view_count | INT          | NOT NULL, DEFAULT 0                                                           | 조회수       |
 | created_at | DATETIME     | NOT NULL                                                                      | 생성 일시     |
 | updated_at | DATETIME     | NOT NULL                                                                      | 수정 일시     |
 
@@ -54,7 +62,9 @@
 
 #### 설명
 
-게시글 **댓글 및 대댓글 정보**를 저장하는 테이블
+**댓글 및 대댓글** 정보를 저장하는 테이블
+
+(향후 구현 예정)
 
 #### 컬럼 및 제약조건
 
@@ -78,7 +88,9 @@
 
 #### 설명
 
-**게시글 좋아요 정보**를 저장하는 테이블
+**좋아요** 정보를 저장하는 테이블
+
+(향후 구현 예정)
 
 #### 컬럼 및 제약조건
 
@@ -102,7 +114,7 @@
 
 #### 설명
 
-**게시글 첨부파일 정보**를 저장하는 테이블
+**첨부파일** 정보를 저장하는 테이블
 
 #### 컬럼 및 제약조건
 
@@ -236,13 +248,16 @@
 
 ---
 
-## 참고
+## 프로젝트 문서
 
-본 문서는 데이터베이스 관점의 설계 문서이다.
+- [README](../README.md)
+  - 프로젝트 소개
 
-도메인 규칙 및 비즈니스 정책은
-[domain-model.md](./domain-model.md) 문서를 따른다.
+- [Domain Design](./domain-design.md)
+  - 도메인 모델 및 비즈니스 규칙 정의
 
+- [Architecture Decisions](./architecture-decisions.md)
+  - 주요 아키텍처 설계 의사결정 기록
 
-
-
+- [Project Progress](./project-progress.md)
+  - 현재 프로젝트 진행 현황 및 개발 계획

@@ -11,20 +11,3 @@ public enum MemberStatus {
     
     private final String description;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

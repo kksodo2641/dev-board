@@ -21,7 +21,7 @@ import static lombok.AccessLevel.PROTECTED;
 public class Member extends BaseTimeEntity {
     
     @Id @GeneratedValue(strategy = IDENTITY)
-    @Column(name = "member_id")
+    @Column(name = "member_id", nullable = false)
     private Long id;
     
     @Column(nullable = false, unique = true)
@@ -45,12 +45,12 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false)
     private MemberStatus status;
     
-    //==생성 로직==//
+    //==생성 메서드==//
     
-    public static Member createMember(final String email,
-                                      final String passwordHash,
-                                      final String nickname,
-                                      final Gender gender) {
+    public static Member create(final String email,
+                                final String passwordHash,
+                                final String nickname,
+                                final Gender gender) {
         final Member member = new Member();
         member.changeEmail(email);
         member.changePasswordHash(passwordHash);
@@ -71,7 +71,7 @@ public class Member extends BaseTimeEntity {
     public void updateProfile(final String nickname,
                               final Gender gender) {
         requireNonNull(gender);
-        validateNotBlankText(nickname, "nickname");
+        validateNotBlankText("nickname", nickname);
         
         this.nickname = nickname;
         this.gender = gender;
@@ -81,19 +81,27 @@ public class Member extends BaseTimeEntity {
      * 회원 탈퇴
      */
     public void withdraw() {
+        if (status == MemberStatus.DELETED) {
+            throw new IllegalStateException("이미 탈퇴한 회원입니다.");
+        }
+        
         status = MemberStatus.DELETED;
     }
     
+    //==조회 메서드==//
+    public boolean isAdmin() {
+        return role == Role.ADMIN;
+    }
     
     //==내부 상태 변경==//
     
     private void changeEmail(final String email) {
-        validateNotBlankText(email, "email");
+        validateNotBlankText("email", email);
         this.email = email;
     }
     
     private void changePasswordHash(final String passwordHash) {
-        validateNotBlankText(passwordHash, "passwordHash");
+        validateNotBlankText("passwordHash", passwordHash);
         this.passwordHash = passwordHash;
     }
     
@@ -105,30 +113,13 @@ public class Member extends BaseTimeEntity {
         this.role = role;
     }
     
-    private static void validateNotBlankText(final String value,
-                                             final String fieldName) {
+    private static void validateNotBlankText(final String fieldName, final String value) {
+        assert (fieldName != null);
+        
         requireNonNull(value);
         
         if (value.isBlank()) {
-            assert (fieldName != null);
             throw new IllegalArgumentException(fieldName + "은 공백일 수 없습니다.");
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

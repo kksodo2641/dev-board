@@ -22,20 +22,3 @@ public class UpdateMemberRequest {
     @NotNull(message = "성별은 필수입니다.")
     private Gender gender;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

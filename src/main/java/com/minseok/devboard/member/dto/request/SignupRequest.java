@@ -39,20 +39,3 @@ public class SignupRequest {
         this.gender = gender;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
