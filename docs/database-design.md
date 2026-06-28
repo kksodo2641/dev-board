@@ -250,6 +250,9 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 
 ## 프로젝트 문서
 
+- [README](../README.md)
+  - 프로젝트 소개
+
 - [Domain Design](./domain-design.md)
   - 도메인 모델 및 비즈니스 규칙 정의
 
