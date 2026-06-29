@@ -89,6 +89,7 @@ public class Member extends BaseTimeEntity {
     }
     
     //==조회 메서드==//
+    
     public boolean isAdmin() {
         return role == Role.ADMIN;
     }

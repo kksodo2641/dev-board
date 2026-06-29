@@ -3,7 +3,6 @@ package com.minseok.devboard.global.interceptor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -13,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
 
 @Component
-@RequiredArgsConstructor
 public class LoginCheckInterceptor implements HandlerInterceptor {
     
     @Override

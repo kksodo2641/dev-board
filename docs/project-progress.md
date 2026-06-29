@@ -2,7 +2,7 @@
 
 ## Current Branch
 
-feature/board
+main (feature/board 브랜치 merge 직후)
 
 ---
 
