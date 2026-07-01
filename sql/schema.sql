@@ -42,21 +42,21 @@ create table board
 create table comment
 (
     comment_id bigint primary key auto_increment,
-    board_id   bigint      not null,
     member_id  bigint      not null,
+    board_id   bigint      not null,
     parent_id  bigint null,
     content    text        not null,
     status     varchar(20) not null default 'ACTIVE' check (status in ('ACTIVE', 'DELETED')),
     created_at datetime    not null,
     updated_at datetime    not null,
 
-    constraint fk_comment_board
-        foreign key (board_id)
-            references board (board_id),
-
     constraint fk_comment_member
         foreign key (member_id)
             references member (member_id),
+
+    constraint fk_comment_board
+        foreign key (board_id)
+            references board (board_id),
 
     constraint fk_comment_parent
         foreign key (parent_id)
@@ -68,18 +68,18 @@ create table comment
 create table board_like
 (
     board_like_id bigint primary key auto_increment,
-    board_id      bigint   not null,
     member_id     bigint   not null,
+    board_id      bigint   not null,
     created_at    datetime not null,
     updated_at    datetime not null,
-
-    constraint fk_board_like_board
-        foreign key (board_id)
-            references board (board_id),
 
     constraint fk_board_like_member
         foreign key (member_id)
             references member (member_id),
+
+    constraint fk_board_like_board
+        foreign key (board_id)
+            references board (board_id),
 
     constraint uk_board_like_board_member
         unique (board_id, member_id)

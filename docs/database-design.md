@@ -71,8 +71,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 | 컬럼명        | 타입          | 제약조건                                                                          | 설명        |
 |------------|-------------|-------------------------------------------------------------------------------|-----------|
 | comment_id | BIGINT      | PK (auto_increment)                                                           | 댓글 ID     |
-| board_id   | BIGINT      | FK, NOT NULL                                                                  | 게시글 ID    |
 | member_id  | BIGINT      | FK, NOT NULL                                                                  | 작성자 회원 ID |
+| board_id   | BIGINT      | FK, NOT NULL                                                                  | 게시글 ID    |
 | parent_id  | BIGINT      | FK, NULL                                                                      | 부모 댓글 ID  |
 | content    | TEXT        | NOT NULL                                                                      | 댓글 내용     |
 | status     | VARCHAR(20) | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE' | 상태        |
@@ -97,8 +97,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 | 컬럼명           | 타입       | 제약조건                | 설명     |
 |---------------|----------|---------------------|--------|
 | board_like_id | BIGINT   | PK (auto_increment) | 좋아요 ID |
-| board_id      | BIGINT   | FK, NOT NULL        | 게시글 ID |
 | member_id     | BIGINT   | FK, NOT NULL        | 회원 ID  |
+| board_id      | BIGINT   | FK, NOT NULL        | 게시글 ID |
 | created_at    | DATETIME | NOT NULL            | 생성 일시  |
 | updated_at    | DATETIME | NOT NULL            | 수정 일시  |
 
