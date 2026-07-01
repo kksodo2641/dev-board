@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import static com.minseok.devboard.member.entity.MemberStatus.DELETED;
 import static jakarta.persistence.GenerationType.IDENTITY;
 import static java.util.Objects.requireNonNull;
 import static lombok.AccessLevel.PROTECTED;
@@ -81,17 +82,21 @@ public class Member extends BaseTimeEntity {
      * 회원 탈퇴
      */
     public void withdraw() {
-        if (status == MemberStatus.DELETED) {
+        if (status == DELETED) {
             throw new IllegalStateException("이미 탈퇴한 회원입니다.");
         }
         
-        status = MemberStatus.DELETED;
+        status = DELETED;
     }
     
     //==조회 메서드==//
     
     public boolean isAdmin() {
         return role == Role.ADMIN;
+    }
+    
+    public boolean isWithdrawn() {
+        return status == DELETED;
     }
     
     //==내부 상태 변경==//
@@ -112,15 +117,5 @@ public class Member extends BaseTimeEntity {
     private void changeRole(final Role role) {
         requireNonNull(role);
         this.role = role;
-    }
-    
-    private static void validateNotBlankText(final String fieldName, final String value) {
-        assert (fieldName != null);
-        
-        requireNonNull(value);
-        
-        if (value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + "은 공백일 수 없습니다.");
-        }
     }
 }
