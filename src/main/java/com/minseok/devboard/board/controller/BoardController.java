@@ -4,7 +4,7 @@ import com.minseok.devboard.board.dto.request.UpdateBoardRequest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
-import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
+import com.minseok.devboard.board.dto.response.BoardUpdateResponse;
 import com.minseok.devboard.board.service.BoardService;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import com.minseok.devboard.member.service.MemberService;
@@ -130,7 +130,7 @@ public class BoardController {
     public String editForm(final @LoginMemberId Long loginMemberId,
                            final @PathVariable Long boardId,
                            final Model model) {
-        final UpdateBoardResponse response = boardService.getBoardForUpdate(loginMemberId, boardId);
+        final BoardUpdateResponse response = boardService.getBoardForUpdate(loginMemberId, boardId);
         
         final UpdateBoardRequest request = UpdateBoardRequest.from(response);
         model.addAttribute("updateBoardRequest", request);

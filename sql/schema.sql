@@ -101,4 +101,3 @@ create table upload_file
         foreign key (board_id)
             references board (board_id)
 );
-

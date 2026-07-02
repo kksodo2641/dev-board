@@ -57,22 +57,42 @@ public class Comment extends BaseTimeEntity {
     
     //==생성 메서드==//
     
+    /**
+     * 최상위 댓글 생성
+     */
     public static Comment create(final Member member,
                                  final Board board,
-                                 final Comment parent,
                                  final String content) {
         validateMemberStatus(member);
         validateBoardStatus(board);
-        validateReplyTarget(parent);
         
         final Comment comment = new Comment();
         
+        // 댓글 생성 시 초기값
+        comment.status = ACTIVE;
+        comment.parent = null;
+        
         comment.member = member;
         comment.board = board;
-        comment.parent = parent;
-        comment.status = ACTIVE; // 댓글 생성 시 초기 상태는 ACTIVE
-        
         comment.update(content);
+        
+        return comment;
+    }
+    
+    /**
+     * 대댓글 생성
+     */
+    public static Comment createReply(final Member member,
+                                      final Board board,
+                                      final Comment parent,
+                                      final String content) {
+        requireNonNull(parent);
+        if (!parent.canReply()) {
+            throw new IllegalStateException("대댓글에는 대댓글을 작성할 수 없습니다.");
+        }
+        
+        final Comment comment = create(member, board, content);
+        comment.parent = parent;
         
         return comment;
     }
@@ -130,13 +150,6 @@ public class Comment extends BaseTimeEntity {
         
         if (board.isDeleted()) {
             throw new IllegalStateException("삭제된 게시글에는 댓글을 작성할 수 없습니다.");
-        }
-    }
-    
-    private static void validateReplyTarget(final Comment parentOrNull) {
-        if (parentOrNull != null
-                && !parentOrNull.canReply()) {
-            throw new IllegalStateException("대댓글에는 대댓글을 작성할 수 없습니다.");
         }
     }
 }

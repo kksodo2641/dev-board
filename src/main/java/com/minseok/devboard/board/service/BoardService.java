@@ -5,7 +5,7 @@ import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardListResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
-import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
+import com.minseok.devboard.board.dto.response.BoardUpdateResponse;
 import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
@@ -125,7 +125,7 @@ public class BoardService {
      * @throws BoardNotFoundException ACTIVE 게시글이 존재하지 않는 경우
      * @throws AccessDeniedException 해당 게시글 작성자가 아닌 경우
      */
-    public UpdateBoardResponse getBoardForUpdate(final Long memberId,
+    public BoardUpdateResponse getBoardForUpdate(final Long memberId,
                                                  final Long boardId) {
         assert (memberId != null);
         assert (boardId != null);
@@ -135,7 +135,7 @@ public class BoardService {
         
         validateBoardUpdatePermission(member, board);
         
-        return UpdateBoardResponse.toResponse(board);
+        return BoardUpdateResponse.toResponse(board);
     }
     
     /**

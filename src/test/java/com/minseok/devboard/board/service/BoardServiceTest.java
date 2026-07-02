@@ -6,7 +6,7 @@ import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardListResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
-import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
+import com.minseok.devboard.board.dto.response.BoardUpdateResponse;
 import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardCategory;
 import com.minseok.devboard.board.entity.BoardStatus;
@@ -46,7 +46,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("ACTIVE 회원은 일반 게시글을 작성할 수 있다.")
-    void writeBoardWithActiveMember() {
+    void writeBoardByActiveMember() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         
@@ -80,7 +80,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("존재하지 않는 회원은 게시글을 작성할 수 없다.")
-    void writeBoardWithNotFoundMember() {
+    void writeBoardByNotFoundMember() {
         // given
         final WriteBoardRequest writeBoardRequest = new WriteBoardRequest("title",
                                                                           "content",
@@ -93,7 +93,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("탈퇴한 회원은 게시글을 작성할 수 없다.")
-    void writeBoardWithWithdrawalMember() {
+    void writeBoardByWithdrawnMember() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         
@@ -110,7 +110,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("일반 회원은 공지사항을 작성할 수 없다.")
-    void writeNoticeWithNormalMember() {
+    void writeNoticeByNormalMember() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         
@@ -125,7 +125,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("관리자는 공지사항을 작성할 수 있다.")
-    void writeNoticeWithAdminMember() {
+    void writeNoticeByAdminMember() {
         // given
         final Long memberId = getAdminMemberId();
         
@@ -161,7 +161,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("게시글 정상 조회")
-    void readBoardSuccess() {
+    void readBoard() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         final Long boardId = createBoard(memberId, "title", "content", QNA);
@@ -194,7 +194,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("게시글 조회 실패 - 존재하지 않는 게시글")
-    void readBoardFailByNotFoundBoard() {
+    void readBoardWithNotFoundBoard() {
         // when, then
         assertThatThrownBy(() -> boardService.readBoard(Long.MAX_VALUE))
                 .isInstanceOf(BoardNotFoundException.class);
@@ -202,7 +202,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("게시글 조회 실패 - 삭제된 게시글")
-    void readBoardFailByDeletedBoard() {
+    void readBoardWithDeletedBoard() {
         // given
         final Long memberId = createUser("user@test.com",
                                          "user");
@@ -225,7 +225,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("조회수 증가 성공")
-    void increaseViewCountSuccess() {
+    void increaseViewCount() {
         // given
         final long memberId = createUser("user@test.com", "user");
         final long boardId = createBoard(memberId, "title", "content", FREE);
@@ -244,7 +244,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("존재하지 않는 게시글은 조회수를 증가할 수 없다.")
-    void increaseViewCountFailByNotFoundBoard() {
+    void increaseViewCountWithNotFoundBoard() {
         // when, then
         assertThatThrownBy(() -> boardService.increaseViewCount(Long.MAX_VALUE))
                 .isInstanceOf(BoardNotFoundException.class);
@@ -252,7 +252,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("삭제된 게시글은 조회수를 증가할 수 없다.")
-    void increaseViewCountFailByDeletedBoard() {
+    void increaseViewCountWithDeletedBoard() {
         // given
         final long memberId = createUser("user@test.com", "user");
         final long boardId = createBoard(memberId, "title", "content", FREE);
@@ -276,7 +276,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("게시글이 없으면 1페이지로 조회된다.")
-    void getBoardPageWithoutBoards() {
+    void getBoardPageWithWithoutBoards() {
         // given
         // 게시글 X
         
@@ -484,13 +484,13 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("작성자는 게시글 수정 화면을 조회할 수 있다.")
-    void getBoardForUpdateSuccess() {
+    void getBoardForUpdate() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         final Long boardId = createBoard(memberId, "title", "content", FREE);
         
         // when
-        final UpdateBoardResponse response = boardService.getBoardForUpdate(memberId, boardId);
+        final BoardUpdateResponse response = boardService.getBoardForUpdate(memberId, boardId);
         
         // then
         assertThat(response.getBoardId()).isEqualTo(boardId);
@@ -501,7 +501,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("작성자가 아닌 회원은, 게시글 수정 화면을 조회할 수 없다.")
-    void getBoardForUpdateFailByNotWriter() {
+    void getBoardForUpdateByNotWriter() {
         // given
         final Long writerId = createUser("writer@test.com", "writer");
         final Long boardId = createBoard(writerId, "title", "content", FREE);
@@ -518,7 +518,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("삭제된 게시글은 수정 화면을 조회할 수 없다.")
-    void getBoardForUpdateFailByDeletedBoard() {
+    void getBoardForUpdateWithDeletedBoard() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         final Long boardId = createBoard(memberId, "title", "content", FREE);
@@ -534,7 +534,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("존재하지 않는 게시글은 수정 화면을 조회할 수 없다.")
-    void getBoardForUpdateFailByNotFoundBoard() {
+    void getBoardForUpdateWithNotFoundBoard() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         
@@ -547,7 +547,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("작성자는 게시글을 수정할 수 있다.")
-    void updateBoardSuccess() {
+    void updateBoardByWriter() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         final Long boardId = createBoard(memberId, "title", "content", FREE);
@@ -573,7 +573,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("일반 회원은 공지사항으로 수정할 수 없다.")
-    void updateNoticeFailByNormalMember() {
+    void updateNoticeByNormalMember() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         final Long boardId = createBoard(memberId, "title", "content", FREE);
@@ -589,7 +589,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("관리자는 공지사항으로 수정할 수 있다.")
-    void updateNoticeWithAdminMember() {
+    void updateNoticeByAdminMember() {
         // given
         final Long adminMemberId = getAdminMemberId();
         
@@ -617,7 +617,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("작성자가 아닌 회원은, 게시글을 수정할 수 없다.")
-    void updateBoardFailByNotWriter() {
+    void updateBoardByNotWriter() {
         // given
         final Long writerId = createUser("writer@test.com", "writer");
         final Long boardId = createBoard(writerId, "title", "content", FREE);
@@ -637,7 +637,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("삭제된 게시글은 수정할 수 없다.")
-    void updateBoardFailByDeletedBoard() {
+    void updateBoardWithDeletedBoard() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         final Long boardId = createBoard(memberId, "title", "content", FREE);
@@ -657,7 +657,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("존재하지 않는 게시글은 수정할 수 없다.")
-    void updateBoardFailByNotFoundBoard() {
+    void updateBoardWithNotFoundBoard() {
         // given
         final Long memberId = createUser("user@test.com", "user");
         
@@ -674,7 +674,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("작성자는 게시글을 삭제할 수 있다.")
-    void deleteBoardSuccessByWriter() {
+    void deleteBoardByWriter() {
         // given
         final long memberId = createUser("user@test.com", "tester");
         final long boardId = createBoard(memberId, "title", "content", FREE);
@@ -691,7 +691,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("관리자는 다른 회원의 게시글을 삭제할 수 있다.")
-    void deleteBoardSuccessByAdminMember() {
+    void deleteBoardByAdminMember() {
         // given
         final long memberId = createUser("user@test.com", "tester");
         final long boardId = createBoard(memberId, "title", "content", FREE);
@@ -708,7 +708,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("작성자가 아닌 회원은 게시글을 삭제할 수 없다.")
-    void deleteBoardFailByNotWriter() {
+    void deleteBoardByNotWriter() {
         // given
         final long writerId = createUser("writer@test.com", "writer");
         final long boardId = createBoard(writerId, "title", "content", FREE);
@@ -722,7 +722,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("삭제된 게시글은 다시 삭제할 수 없다.")
-    void deleteBoardFailByDeletedBoard() {
+    void deleteBoardWithDeletedBoard() {
         // given
         final long memberId = createUser("user@test.com", "tester");
         final long boardId = createBoard(memberId, "title", "content", FREE);
@@ -740,7 +740,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("존재하지 않는 게시글은 삭제할 수 없다.")
-    void deleteBoardFailByNotFoundBoard() {
+    void deleteBoardWithNotFoundBoard() {
         // given
         final long memberId = createUser("user@test.com", "tester");
         
@@ -751,7 +751,7 @@ class BoardServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("탈퇴한 회원은 게시글을 삭제할 수 없다.")
-    void deleteBoardFailByWithdrawnMember() {
+    void deleteBoardByWithdrawnMember() {
         // given
         final long memberId = createUser("user@test.com", "tester");
         final long boardId = createBoard(memberId, "title", "content", FREE);
