@@ -6,6 +6,8 @@ import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
 import com.minseok.devboard.board.dto.response.BoardUpdateResponse;
 import com.minseok.devboard.board.service.BoardService;
+import com.minseok.devboard.comment.dto.request.WriteCommentRequest;
+import com.minseok.devboard.comment.service.CommentService;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import com.minseok.devboard.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
@@ -38,16 +40,17 @@ public class BoardController {
     private static final String VIEWED_BOARDS_SEPARATOR = ":";
     private static final int VIEW_COOKIE_MAX_AGE = 60 * 60 * 24; // 24시간
     
-    private final BoardService boardService;
     private final MemberService memberService;
+    private final BoardService boardService;
+    private final CommentService commentService;
     
     /**
      * 게시글 작성 폼
      */
     @GetMapping("/write")
-    public String writeForm(final @LoginMemberId Long memberId,
-                            final @ModelAttribute WriteBoardRequest writeBoardRequest,
-                            final Model model) {
+    public String writeBoardForm(final @LoginMemberId Long memberId,
+                                 final @ModelAttribute WriteBoardRequest writeBoardRequest,
+                                 final Model model) {
         model.addAttribute("categories",
                            boardService.getWritableCategories(memberId));
         return resolveView("write");
@@ -57,11 +60,11 @@ public class BoardController {
      * 게시글 작성
      */
     @PostMapping("/write")
-    public String write(final @LoginMemberId Long memberId,
-                        final @Valid @ModelAttribute WriteBoardRequest writeBoardRequest,
-                        final BindingResult bindingResult,
-                        final Model model,
-                        final RedirectAttributes redirectAttributes) {
+    public String writeBoard(final @LoginMemberId Long memberId,
+                             final @Valid @ModelAttribute WriteBoardRequest writeBoardRequest,
+                             final BindingResult bindingResult,
+                             final Model model,
+                             final RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("categories",
                                boardService.getWritableCategories(memberId));
@@ -82,27 +85,34 @@ public class BoardController {
             final @SessionAttribute(name = LOGIN_MEMBER_ID, required = false) Long loginMemberId,
             final @CookieValue(name = VIEWED_BOARDS_COOKIE, required = false) String viewedBoards,
             final @PathVariable Long boardId,
+            final @ModelAttribute WriteCommentRequest writeCommentRequest,
             final Model model,
             final HttpServletResponse httpResponse) {
-        
         increaseViewCountIfNeeded(boardId, viewedBoards, httpResponse);
-        
-        final BoardDetailResponse boardDetailResponse = boardService.readBoard(boardId);
-        
-        boolean canEdit = false;
-        boolean canDelete = false;
-        
-        if (loginMemberId != null) {
-            final boolean isWriter = boardDetailResponse.getWriterId().equals(loginMemberId);
-            canEdit = isWriter;
-            canDelete = isWriter || memberService.isAdmin(loginMemberId);
-        }
-        
-        model.addAttribute("board", boardDetailResponse);
-        model.addAttribute("canEdit", canEdit);
-        model.addAttribute("canDelete", canDelete);
+        prepareDetailModel(loginMemberId, boardId, model);
         
         return resolveView("detail");
+    }
+    
+    /**
+     * 댓글 작성
+     */
+    @PostMapping("/{boardId}/comments/write")
+    public String writeComment(final @LoginMemberId Long loginMemberId,
+                               final @PathVariable Long boardId,
+                               final @Valid @ModelAttribute WriteCommentRequest writeCommentRequest,
+                               final BindingResult bindingResult,
+                               final Model model) {
+        if (bindingResult.hasErrors()) {
+            prepareDetailModel(loginMemberId, boardId, model);
+            return resolveView("detail");
+        }
+        
+        commentService.writeComment(loginMemberId,
+                                    boardId,
+                                    writeCommentRequest);
+        
+        return "redirect:/boards/{boardId}";
     }
     
     /**
@@ -174,6 +184,35 @@ public class BoardController {
                          final @PathVariable Long boardId) {
         boardService.deleteBoard(loginMemberId, boardId);
         return "redirect:/boards";
+    }
+    
+    /**
+     * 게시글 상세 화면에 필요한 Model 데이터 구성
+     */
+    private void prepareDetailModel(final Long loginMemberId,
+                                    final Long boardId,
+                                    final Model model) {
+        assert (model != null);
+        assert (boardId != null);
+        
+        final BoardDetailResponse boardDetailResponse = boardService.readBoard(boardId);
+        model.addAttribute("board", boardDetailResponse);
+        
+        final boolean isLoginMember = loginMemberId != null;
+        model.addAttribute("isLoginMember", isLoginMember);
+        
+        boolean canEdit = false;
+        boolean canDelete = false;
+        
+        if (isLoginMember) {
+            final boolean isWriter = boardDetailResponse.getWriterId()
+                                                        .equals(loginMemberId);
+            canEdit = isWriter;
+            canDelete = isWriter || memberService.isAdmin(loginMemberId);
+        }
+        
+        model.addAttribute("canEdit", canEdit);
+        model.addAttribute("canDelete", canDelete);
     }
     
     private void increaseViewCountIfNeeded(final Long boardId,
