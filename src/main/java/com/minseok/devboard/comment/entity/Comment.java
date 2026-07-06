@@ -116,8 +116,12 @@ public class Comment extends BaseTimeEntity {
     
     //==조회 메서드==//
     
+    public boolean hasParent() {
+        return parent != null;
+    }
+    
     public boolean canReply() {
-        return parent == null;
+        return !hasParent();
     }
     
     public boolean isDeleted() {

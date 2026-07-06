@@ -7,6 +7,7 @@ import com.minseok.devboard.board.exception.BoardNotFoundException;
 import com.minseok.devboard.board.repository.BoardRepository;
 import com.minseok.devboard.board.service.BoardService;
 import com.minseok.devboard.comment.dto.request.WriteCommentRequest;
+import com.minseok.devboard.comment.dto.response.CommentResponse;
 import com.minseok.devboard.comment.entity.Comment;
 import com.minseok.devboard.comment.exception.CommentNotFoundException;
 import com.minseok.devboard.comment.exception.ReplyNotAllowedException;
@@ -22,9 +23,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
+
 import static com.minseok.devboard.board.entity.BoardCategory.FREE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 
 @RequiredArgsConstructor
 class CommentServiceTest extends IntegrationTest {
@@ -238,6 +242,220 @@ class CommentServiceTest extends IntegrationTest {
         assertThat(reply.getParent()).isEqualTo(comment);
     }
     
+    //==댓글 조회==//
+    
+    @Test
+    @DisplayName("댓글이 없는 게시글은 빈 목록을 반환한다.")
+    void getCommentListWithNoComments() {
+        // given
+        final Long memberId = createMember("test@example.com", "nickname");
+        final Long boardId = createBoard(memberId);
+        
+        // when
+        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        
+        // then
+        assertThat(commentList).isEmpty();
+    }
+    
+    @Test
+    @DisplayName("최상위 댓글만 존재하는 게시글을 조회할 수 있다.")
+    void getCommentListWithOnlyParentComments() {
+        // given
+        final Long memberId1 = createMember("test1@example.com", "m1");
+        final Long memberId2 = createMember("test2@example.com", "m2");
+        final Long memberId3 = createMember("test3@example.com", "m3");
+        
+        final Long boardId = createBoard(memberId1);
+        
+        final Long commentId1 = createComment(memberId1, boardId, "c1");
+        final Long commentId2 = createComment(memberId2, boardId, "c2");
+        final Long commentId3 = createComment(memberId3, boardId, "c3");
+        final Long commentId4 = createComment(memberId2, boardId, "c4");
+        final Long commentId5 = createComment(memberId1, boardId, "c5");
+        final Long commentId6 = createComment(memberId3, boardId, "c6");
+        
+        // when
+        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        
+        // then
+        assertThat(commentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::getWriterNickname,
+                            CommentResponse::getContent,
+                            CommentResponse::hasParent)
+                .containsExactly(
+                        tuple(commentId1, "m1", "c1", false),
+                        tuple(commentId2, "m2", "c2", false),
+                        tuple(commentId3, "m3", "c3", false),
+                        tuple(commentId4, "m2", "c4", false),
+                        tuple(commentId5, "m1", "c5", false),
+                        tuple(commentId6, "m3", "c6", false)
+                );
+    }
+    
+    @Test
+    @DisplayName("댓글과 대댓글이 함께 존재하는 게시글을 조회할 수 있다.")
+    void getCommentListWithReplies() {
+        // given
+        final Long m1 = createMember("test1@example.com", "m1");
+        final Long m2 = createMember("test2@example.com", "m2");
+        final Long m3 = createMember("test3@example.com", "m3");
+        
+        final Long boardId = createBoard(m1);
+        
+        final Long c1 = createComment(m1, boardId, "A");
+        final Long c2 = createComment(m2, boardId, "B");
+        final Long c3 = createComment(m3, boardId, "C");
+        
+        final Long r1 = createReply(m3, boardId, c1, "A-1");
+        final Long r2 = createReply(m2, boardId, c2, "B-1");
+        final Long r3 = createReply(m1, boardId, c2, "B-2");
+        final Long r4 = createReply(m2, boardId, c1, "A-2");
+        final Long r5 = createReply(m1, boardId, c3, "C-1");
+        final Long r6 = createReply(m1, boardId, c1, "A-3");
+        
+        // when
+        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        
+        // then
+        assertThat(commentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::getWriterNickname,
+                            CommentResponse::getContent,
+                            CommentResponse::hasParent)
+                .containsExactly(
+                        tuple(c1, "m1", "A", false),
+                        tuple(r1, "m3", "A-1", true),
+                        tuple(r4, "m2", "A-2", true),
+                        tuple(r6, "m1", "A-3", true),
+                        
+                        tuple(c2, "m2", "B", false),
+                        tuple(r2, "m2", "B-1", true),
+                        tuple(r3, "m1", "B-2", true),
+                        
+                        tuple(c3, "m3", "C", false),
+                        tuple(r5, "m1", "C-1", true)
+                );
+    }
+    
+    @Test
+    @DisplayName("삭제된 댓글의 내용은 '삭제된 댓글입니다.' 형태로 표시된다.")
+    void getCommentListWithDeletedComments() {
+        // given
+        final Long m1 = createMember("test1@example.com", "m1");
+        final Long m2 = createMember("test2@example.com", "m2");
+        final Long m3 = createMember("test3@example.com", "m3");
+        
+        final Long boardId = createBoard(m1);
+        
+        final Long c1 = createComment(m1, boardId, "A");
+        final Long c2 = createComment(m2, boardId, "B");
+        final Long c3 = createComment(m3, boardId, "C");
+        
+        deleteComment(c2);
+        
+        final Long r1 = createReply(m3, boardId, c1, "A-1");
+        final Long r2 = createReply(m2, boardId, c2, "B-1");
+        final Long r3 = createReply(m1, boardId, c2, "B-2");
+        final Long r4 = createReply(m2, boardId, c1, "A-2");
+        final Long r5 = createReply(m1, boardId, c3, "C-1");
+        final Long r6 = createReply(m1, boardId, c1, "A-3");
+        
+        deleteComment(r1, r3, r5);
+        
+        // when
+        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        
+        // then
+        assertThat(commentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::getWriterNickname,
+                            CommentResponse::getContent,
+                            CommentResponse::hasParent)
+                .containsExactly(
+                        tuple(c1, "m1", "A", false),
+                        tuple(r1, "m3", "삭제된 댓글입니다.", true),
+                        tuple(r4, "m2", "A-2", true),
+                        tuple(r6, "m1", "A-3", true),
+                        
+                        tuple(c2, "m2", "삭제된 댓글입니다.", false),
+                        tuple(r2, "m2", "B-1", true),
+                        tuple(r3, "m1", "삭제된 댓글입니다.", true),
+                        
+                        tuple(c3, "m3", "C", false),
+                        tuple(r5, "m1", "삭제된 댓글입니다.", true)
+                );
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글도 댓글을 조회할 수 있다.")
+    void getCommentListFromDeletedBoard() {
+        // given
+        final Long m1 = createMember("test1@example.com", "m1");
+        final Long m2 = createMember("test2@example.com", "m2");
+        final Long m3 = createMember("test3@example.com", "m3");
+        
+        final Long boardId = createBoard(m1);
+        
+        final Long c1 = createComment(m1, boardId, "A");
+        final Long c2 = createComment(m2, boardId, "B");
+        final Long c3 = createComment(m3, boardId, "C");
+        
+        deleteComment(c2);
+        
+        final Long r1 = createReply(m3, boardId, c1, "A-1");
+        final Long r2 = createReply(m2, boardId, c2, "B-1");
+        final Long r3 = createReply(m1, boardId, c2, "B-2");
+        final Long r4 = createReply(m2, boardId, c1, "A-2");
+        final Long r5 = createReply(m1, boardId, c3, "C-1");
+        final Long r6 = createReply(m1, boardId, c1, "A-3");
+        
+        deleteComment(r1, r3, r5);
+        
+        boardService.deleteBoard(m1, boardId);
+        
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow();
+        assertThat(board.isDeleted()).isTrue();
+        
+        // when
+        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        
+        // then
+        assertThat(commentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::getWriterNickname,
+                            CommentResponse::getContent,
+                            CommentResponse::hasParent)
+                .containsExactly(
+                        tuple(c1, "m1", "A", false),
+                        tuple(r1, "m3", "삭제된 댓글입니다.", true),
+                        tuple(r4, "m2", "A-2", true),
+                        tuple(r6, "m1", "A-3", true),
+                        
+                        tuple(c2, "m2", "삭제된 댓글입니다.", false),
+                        tuple(r2, "m2", "B-1", true),
+                        tuple(r3, "m1", "삭제된 댓글입니다.", true),
+                        
+                        tuple(c3, "m3", "C", false),
+                        tuple(r5, "m1", "삭제된 댓글입니다.", true)
+                );
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 게시글은 댓글을 조회할 수 없다.")
+    void getCommentListFromNotFoundBoard() {
+        // given
+        // when, then
+        final Long invalidBoardId = Long.MAX_VALUE;
+        
+        assertThatThrownBy(() -> commentService.getCommentList(invalidBoardId))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    //==편의 메서드==//
+    
     private Long createMember(final String email, final String nickname) {
         return memberService.signup(new SignupRequest(email,
                                                       "password123!",
@@ -248,5 +466,30 @@ class CommentServiceTest extends IntegrationTest {
     private Long createBoard(final Long memberId) {
         return boardService.writeBoard(memberId,
                                        new WriteBoardRequest("title", "content", FREE));
+    }
+    
+    private Long createComment(final Long memberId,
+                               final Long boardId,
+                               final String content) {
+        return commentService.writeComment(memberId,
+                                           boardId,
+                                           new WriteCommentRequest(content, null));
+    }
+    
+    private Long createReply(final Long memberId,
+                             final Long boardId,
+                             final Long parentId,
+                             final String content) {
+        return commentService.writeComment(memberId,
+                                           boardId,
+                                           new WriteCommentRequest(content, parentId));
+    }
+    
+    private void deleteComment(final Long... commentIds) {
+        for (final Long id : commentIds) {
+            final Comment comment = commentRepository.findById(id)
+                                                     .orElseThrow();
+            comment.delete();
+        }
     }
 }

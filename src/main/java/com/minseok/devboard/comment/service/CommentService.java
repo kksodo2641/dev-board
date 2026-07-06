@@ -5,6 +5,7 @@ import com.minseok.devboard.board.entity.BoardStatus;
 import com.minseok.devboard.board.exception.BoardNotFoundException;
 import com.minseok.devboard.board.repository.BoardRepository;
 import com.minseok.devboard.comment.dto.request.WriteCommentRequest;
+import com.minseok.devboard.comment.dto.response.CommentResponse;
 import com.minseok.devboard.comment.entity.Comment;
 import com.minseok.devboard.comment.exception.CommentNotFoundException;
 import com.minseok.devboard.comment.exception.ReplyNotAllowedException;
@@ -16,6 +17,12 @@ import com.minseok.devboard.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
@@ -38,7 +45,6 @@ public class CommentService {
     public Long writeComment(final Long memberId,
                              final Long boardId,
                              final WriteCommentRequest request) {
-        
         assert (request != null);
         
         final Member member = findActiveMember(memberId);
@@ -46,7 +52,9 @@ public class CommentService {
         
         // 댓글 작성
         if (request.getParentId() == null) {
-            return commentRepository.save(Comment.create(member, board, request.getContent()))
+            return commentRepository.save(Comment.create(member,
+                                                         board,
+                                                         request.getContent()))
                                     .getId();
         }
         
@@ -56,9 +64,58 @@ public class CommentService {
             throw new ReplyNotAllowedException();
         }
         
-        return commentRepository.save(Comment.createReply(member, board, parent, request.getContent()))
+        return commentRepository.save(Comment.createReply(member,
+                                                          board,
+                                                          parent,
+                                                          request.getContent()))
                                 .getId();
     }
+    
+    /**
+     * 댓글 목록 조회
+     * <p>
+     * 삭제된 게시글도 댓글 조회 가능
+     *
+     * @throws BoardNotFoundException 존재하지 않는 게시글인 경우
+     */
+    public List<CommentResponse> getCommentList(final Long boardId) {
+        assert (boardId != null);
+        
+        // 삭제 게시글도 포함해서 조회
+        final Board board = boardRepository.findById(boardId)
+                                           .orElseThrow(BoardNotFoundException::new);
+        
+        // 댓글 목록 조회(생성순)
+        final List<Comment> commentsByIdAsc = commentRepository.findByBoardOrderByIdAsc(board);
+        
+        final List<Comment> parentComments = new ArrayList<>();
+        final Map<Long, List<Comment>> replyMap = new HashMap<>();
+        
+        for (final Comment c : commentsByIdAsc) {
+            if (!c.hasParent()) { // 최상위 댓글
+                parentComments.add(c);
+                replyMap.put(c.getId(), new ArrayList<>());
+                
+            } else { // 대댓글
+                replyMap.get(c.getParent().getId())
+                        .add(c);
+            }
+        }
+        
+        final List<CommentResponse> result = new ArrayList<>();
+        
+        for (final Comment parent : parentComments) {
+            result.add(CommentResponse.toResponse(parent));
+            
+            result.addAll(replyMap.get(parent.getId()).stream()
+                                  .map(CommentResponse::toResponse)
+                                  .toList());
+        }
+        
+        return result;
+    }
+    
+    //==내부 메서드==//
     
     /**
      * 활성 회원 조회
