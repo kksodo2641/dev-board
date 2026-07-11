@@ -1,5 +1,6 @@
 package com.minseok.devboard.comment.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.minseok.devboard.comment.entity.Comment;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,6 +21,7 @@ public class CommentResponse {
     
     private final boolean deleted;
     
+    @JsonProperty("hasParent")
     @Accessors(fluent = true)
     private final boolean hasParent;
     

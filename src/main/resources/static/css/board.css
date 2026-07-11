@@ -182,77 +182,11 @@
     margin-right: 6px;
 }
 
-/* =========================
-   Comment
-   ========================= */
-
 .detail-container {
     display: flex;
     flex-direction: column;
     gap: 28px;
     width: 800px;
-}
-
-.comment-card {
-    width: 100%;
-    padding: 40px;
-    background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.comment-header {
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.comment-header h2 {
-    margin: 0;
-    font-size: 22px;
-    color: #1f2937;
-}
-
-.comment-write .form-group {
-    margin-bottom: 20px;
-}
-
-.comment-write textarea {
-    width: 100%;
-    min-height: 120px;
-    padding: 14px;
-    resize: vertical;
-
-    font-size: 15px;
-    line-height: 1.6;
-
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-
-    box-sizing: border-box;
-    transition: border-color 0.2s;
-}
-
-.comment-write textarea:focus {
-    outline: none;
-    border-color: #2563eb;
-}
-
-.comment-write-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.comment-guide {
-    font-size: 13px;
-    color: #6b7280;
-}
-
-.comment-description {
-    margin-bottom: 12px;
-    color: #4b5563;
-    font-size: 15px;
 }
 
 .detail-footer {

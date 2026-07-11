@@ -6,8 +6,6 @@ import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
 import com.minseok.devboard.board.dto.response.BoardUpdateResponse;
 import com.minseok.devboard.board.service.BoardService;
-import com.minseok.devboard.comment.dto.request.WriteCommentRequest;
-import com.minseok.devboard.comment.service.CommentService;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import com.minseok.devboard.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
@@ -42,7 +40,6 @@ public class BoardController {
     
     private final MemberService memberService;
     private final BoardService boardService;
-    private final CommentService commentService;
     
     /**
      * 게시글 작성 폼
@@ -85,34 +82,31 @@ public class BoardController {
             final @SessionAttribute(name = LOGIN_MEMBER_ID, required = false) Long loginMemberId,
             final @CookieValue(name = VIEWED_BOARDS_COOKIE, required = false) String viewedBoards,
             final @PathVariable Long boardId,
-            final @ModelAttribute WriteCommentRequest writeCommentRequest,
             final Model model,
             final HttpServletResponse httpResponse) {
-        increaseViewCountIfNeeded(boardId, viewedBoards, httpResponse);
-        prepareDetailModel(loginMemberId, boardId, model);
         
-        return resolveView("detail");
-    }
-    
-    /**
-     * 댓글 작성
-     */
-    @PostMapping("/{boardId}/comments/write")
-    public String writeComment(final @LoginMemberId Long loginMemberId,
-                               final @PathVariable Long boardId,
-                               final @Valid @ModelAttribute WriteCommentRequest writeCommentRequest,
-                               final BindingResult bindingResult,
-                               final Model model) {
-        if (bindingResult.hasErrors()) {
-            prepareDetailModel(loginMemberId, boardId, model);
-            return resolveView("detail");
+        increaseViewCountIfNeeded(boardId, viewedBoards, httpResponse);
+        
+        final BoardDetailResponse boardDetailResponse = boardService.readBoard(boardId);
+        model.addAttribute("board", boardDetailResponse);
+        
+        final boolean isLogin = loginMemberId != null;
+        model.addAttribute("isLogin", isLogin);
+        
+        boolean canEdit = false;
+        boolean canDelete = false;
+        
+        if (isLogin) {
+            final boolean isWriter = boardDetailResponse.getWriterId()
+                                                        .equals(loginMemberId);
+            canEdit = isWriter;
+            canDelete = isWriter || memberService.isAdmin(loginMemberId);
         }
         
-        commentService.writeComment(loginMemberId,
-                                    boardId,
-                                    writeCommentRequest);
+        model.addAttribute("canEdit", canEdit);
+        model.addAttribute("canDelete", canDelete);
         
-        return "redirect:/boards/{boardId}";
+        return resolveView("detail");
     }
     
     /**
@@ -184,35 +178,6 @@ public class BoardController {
                          final @PathVariable Long boardId) {
         boardService.deleteBoard(loginMemberId, boardId);
         return "redirect:/boards";
-    }
-    
-    /**
-     * 게시글 상세 화면에 필요한 Model 데이터 구성
-     */
-    private void prepareDetailModel(final Long loginMemberId,
-                                    final Long boardId,
-                                    final Model model) {
-        assert (model != null);
-        assert (boardId != null);
-        
-        final BoardDetailResponse boardDetailResponse = boardService.readBoard(boardId);
-        model.addAttribute("board", boardDetailResponse);
-        
-        final boolean isLoginMember = loginMemberId != null;
-        model.addAttribute("isLoginMember", isLoginMember);
-        
-        boolean canEdit = false;
-        boolean canDelete = false;
-        
-        if (isLoginMember) {
-            final boolean isWriter = boardDetailResponse.getWriterId()
-                                                        .equals(loginMemberId);
-            canEdit = isWriter;
-            canDelete = isWriter || memberService.isAdmin(loginMemberId);
-        }
-        
-        model.addAttribute("canEdit", canEdit);
-        model.addAttribute("canDelete", canDelete);
     }
     
     private void increaseViewCountIfNeeded(final Long boardId,
