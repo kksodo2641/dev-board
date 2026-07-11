@@ -29,9 +29,8 @@ public abstract class BaseTimeEntity {
      * 공백 문자열 검증
      *
      * @param fieldName 필드명
-     * @param value 필드값
-     *
-     * @throws NullPointerException value가 null인 경우
+     * @param value     필드값
+     * @throws NullPointerException     value가 null인 경우
      * @throws IllegalArgumentException value가 공백 문자(whitespace)로만 이루어진 경우
      */
     protected static void validateNotBlankText(final String fieldName, final String value) {

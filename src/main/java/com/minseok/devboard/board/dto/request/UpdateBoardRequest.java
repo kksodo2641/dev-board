@@ -33,5 +33,4 @@ public class UpdateBoardRequest {
                                       response.getContent(),
                                       response.getCategory());
     }
-    
 }

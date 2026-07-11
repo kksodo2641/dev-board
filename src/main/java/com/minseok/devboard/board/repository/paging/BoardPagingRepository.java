@@ -10,19 +10,3 @@ public interface BoardPagingRepository {
     
     List<Board> findBoardList(int offset, int limit);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

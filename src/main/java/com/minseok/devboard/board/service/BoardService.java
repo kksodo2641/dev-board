@@ -41,7 +41,7 @@ public class BoardService {
      * 게시글 작성
      *
      * @throws MemberNotFoundException ACTIVE 회원이 존재하지 않는 경우
-     * @throws AccessDeniedException 카테고리 작성 권한이 없는 경우
+     * @throws AccessDeniedException   카테고리 작성 권한이 없는 경우
      */
     @Transactional
     public Long writeBoard(final Long memberId,
@@ -122,8 +122,8 @@ public class BoardService {
      * 게시글 수정 화면 조회
      *
      * @throws MemberNotFoundException ACTIVE 회원이 존재하지 않는 경우
-     * @throws BoardNotFoundException ACTIVE 게시글이 존재하지 않는 경우
-     * @throws AccessDeniedException 해당 게시글 작성자가 아닌 경우
+     * @throws BoardNotFoundException  ACTIVE 게시글이 존재하지 않는 경우
+     * @throws AccessDeniedException   해당 게시글 작성자가 아닌 경우
      */
     public BoardUpdateResponse getBoardForUpdate(final Long memberId,
                                                  final Long boardId) {
@@ -142,8 +142,8 @@ public class BoardService {
      * 게시글 수정
      *
      * @throws MemberNotFoundException ACTIVE 회원이 존재하지 않는 경우
-     * @throws BoardNotFoundException ACTIVE 게시글이 존재하지 않는 경우
-     * @throws AccessDeniedException 해당 게시글 작성자가 아니거나, 공지사항 수정 권한이 없는 경우
+     * @throws BoardNotFoundException  ACTIVE 게시글이 존재하지 않는 경우
+     * @throws AccessDeniedException   해당 게시글 작성자가 아니거나, 공지사항 수정 권한이 없는 경우
      */
     @Transactional
     public void updateBoard(final Long memberId,

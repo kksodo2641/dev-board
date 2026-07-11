@@ -734,7 +734,8 @@ class BoardServiceTest extends IntegrationTest {
         assertThat(board.isDeleted()).isTrue();
         
         // when, then
-        assertThatThrownBy(() -> boardService.deleteBoard(memberId, boardId)) // 삭제 게시글 재삭제
+        // 삭제 게시글 재삭제
+        assertThatThrownBy(() -> boardService.deleteBoard(memberId, boardId))
                 .isInstanceOf(BoardNotFoundException.class);
     }
     
