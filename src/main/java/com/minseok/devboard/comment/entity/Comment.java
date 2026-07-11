@@ -133,6 +133,11 @@ public class Comment extends BaseTimeEntity {
         return member.getId().equals(memberId);
     }
     
+    public boolean isWrittenIn(final Long boardId) {
+        assert (boardId != null);
+        return board.getId().equals(boardId);
+    }
+    
     //==검증 메서드==//
     
     private void validateActiveStatus() {

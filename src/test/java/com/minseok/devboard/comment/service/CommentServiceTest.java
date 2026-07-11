@@ -186,6 +186,25 @@ class CommentServiceTest extends IntegrationTest {
     }
     
     @Test
+    @DisplayName("다른 게시글의 댓글에는 대댓글을 작성할 수 없다.")
+    void writeReplyToAnotherBoardComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "nickname");
+        
+        final Long boardId1 = createBoard(memberId);
+        final Long boardId2 = createBoard(memberId);
+        
+        final Long commentId = createComment(memberId, boardId1, "comment");
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.writeComment(memberId,
+                                                             boardId2,
+                                                             new WriteCommentRequest("reply",
+                                                                                     commentId)))
+                .isInstanceOf(CommentNotFoundException.class);
+    }
+    
+    @Test
     @DisplayName("대댓글에는 대댓글을 작성할 수 없다.")
     void writeReplyToReply() {
         // given

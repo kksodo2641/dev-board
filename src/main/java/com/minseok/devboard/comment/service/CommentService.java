@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +37,7 @@ public class CommentService {
      *
      * @throws MemberNotFoundException  존재하지 않거나 탈퇴 회원인 경우
      * @throws BoardNotFoundException   존재하지 않거나 삭제된 게시글인 경우
-     * @throws CommentNotFoundException 대댓글의 부모 댓글이 존재하지 않는 경우
+     * @throws CommentNotFoundException 대댓글의 부모 댓글이 존재하지 않거나, 현재 게시글에 속하지 않는 경우
      * @throws ReplyNotAllowedException 대댓글에 대댓글을 작성하는 경우
      */
     @Transactional
@@ -60,6 +59,11 @@ public class CommentService {
         
         // 대댓글 작성
         final Comment parent = findParentComment(request.getParentId());
+        
+        if (!parent.isWrittenIn(boardId)) {
+            throw new CommentNotFoundException();
+        }
+        
         if (!parent.canReply()) {
             throw new ReplyNotAllowedException();
         }
