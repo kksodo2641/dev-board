@@ -35,7 +35,7 @@ public class Board extends BaseTimeEntity {
     @Column(nullable = false, length = 100)
     private String title;
     
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
     
     @Column(nullable = false)
@@ -115,30 +115,4 @@ public class Board extends BaseTimeEntity {
         requireNonNull(category);
         this.category = category;
     }
-    
-    private static void validateNotBlankText(final String fieldName, final String value) {
-        assert (fieldName != null);
-        
-        requireNonNull(value);
-        if (value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + "은 공백일 수 없습니다.");
-        }
-    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

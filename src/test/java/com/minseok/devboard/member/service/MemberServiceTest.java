@@ -23,14 +23,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MemberServiceTest extends IntegrationTest {
     
-    @Autowired MemberRepository memberRepository;
     @Autowired MemberService memberService;
+    @Autowired MemberRepository memberRepository;
     @Autowired PasswordEncoder passwordEncoder;
     
     //==회원가입==//
+    
     @Test
-    @DisplayName("회원가입 성공")
-    void signupSuccessTest() {
+    @DisplayName("중복되지 않는 이메일/비밀번호를 사용해 회원가입할 수 있다.")
+    void signup() {
         // given
         final String email = "signupSuccessTest@example.com";
         final String password = "signupSuccessTest-password";
@@ -54,8 +55,8 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     @Test
-    @DisplayName("회원가입 실패 - 이메일 중복")
-    void signupDuplicateEmailTest() {
+    @DisplayName("이미 존재하는 이메일로 회원가입할 수 없다.")
+    void signupWithDuplicateEmail() {
         // given
         final String duplicateEmail = "signupDuplicateEmailTest@example.com";
         final SignupRequest signupRequest1 = new SignupRequest(duplicateEmail,
@@ -75,8 +76,8 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     @Test
-    @DisplayName("회원가입 실패 - 닉네임 중복")
-    void signupDuplicateNicknameTest() {
+    @DisplayName("이미 존재하는 닉네임으로 회원가입할 수 없다.")
+    void signupWithDuplicateNickname() {
         // given
         final String duplicateNickname = "signupDupNickname";
         final SignupRequest signupRequest1 = new SignupRequest("signupDuplicateNicknameTest1@example.com",
@@ -96,9 +97,10 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     //==로그인==//
+    
     @Test
-    @DisplayName("로그인 성공")
-    void loginSuccessTest() {
+    @DisplayName("이메일과 비밀번호가 일치하면, 로그인에 성공한다.")
+    void login() {
         // given
         final String email = "loginSuccessTest@example.com";
         final String password = "loginSuccessTest-password";
@@ -114,8 +116,8 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     @Test
-    @DisplayName("로그인 실패 - 탈퇴 회원")
-    void loginWithdrawMemberTest() {
+    @DisplayName("탈퇴 회원은 로그인할 수 없다.")
+    void loginByWithdrawnMember() {
         // given
         final String email = "loginWithdrawMemberTest@example.com";
         final String password = "loginWithdrawMemberTest-password";
@@ -134,41 +136,42 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     @Test
-    @DisplayName("로그인 실패 - 이메일 불일치")
-    void loginNotMatchEmailTest() {
+    @DisplayName("이메일이 일치하지 않으면, 로그인에 실패한다.")
+    void loginWithMismatchEmail() {
         // given
-        final String email = "loginNotMatchEmailTest@example.com";
-        final String password = "loginNotMatchEmailTest-password";
-        final String nickname = "loginNotMatchEmailTest-nick";
+        final String email = "loginMismatchEmailTest@example.com";
+        final String password = "loginMismatchEmailTest-password";
+        final String nickname = "loginMismatchEmailTest-nick";
         
         memberService.signup(new SignupRequest(email, password, nickname, Gender.NONE));
         
         // when, then
-        final String tryEmail = "loginNotMatchEmailTest-not-found@example.com";
+        final String tryEmail = "loginMismatchEmailTest-not-found@example.com";
         assertThatThrownBy(() -> memberService.login(new LoginRequest(tryEmail, password)))
                 .isInstanceOf(LoginFailedException.class);
     }
     
     @Test
-    @DisplayName("로그인 실패 - 비밀번호 불일치")
-    void loginNotMatchPasswordTest() {
+    @DisplayName("비밀번호가 일치하지 않으면, 로그인에 실패한다.")
+    void loginWithMismatchPassword() {
         // given
-        final String email = "loginNotMatchPasswordTest@example.com";
-        final String password = "loginNotMatchPasswordTest-password";
-        final String nickname = "loginNotMatchPassword-nick";
+        final String email = "loginMismatchPasswordTest@example.com";
+        final String password = "loginMismatchPasswordTest-password";
+        final String nickname = "loginMismatchPassword-nick";
         
         memberService.signup(new SignupRequest(email, password, nickname, Gender.NONE));
         
         // when, then
-        final String tryPassword = "loginNotMatchPasswordTest-not-match-password";
+        final String tryPassword = "loginMismatchPasswordTest-not-match-password";
         assertThatThrownBy(() -> memberService.login(new LoginRequest(email, tryPassword)))
                 .isInstanceOf(LoginFailedException.class);
     }
     
     //==회원정보 수정==//
+    
     @Test
-    @DisplayName("회원정보 수정 성공")
-    void updateProfileTest() {
+    @DisplayName("회원정보를 수정할 수 있다.")
+    void updateProfile() {
         // given
         final String email = "updateProfileTest@test.com";
         final String password = "updateProfileTest-password";
@@ -193,8 +196,8 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     @Test
-    @DisplayName("회원정보 수정 성공 - 닉네임 유지, 성별만 수정")
-    void updateProfileWithSameNicknameTest() {
+    @DisplayName("회원정보 수정 시, 기존 닉네임을 유지할 수 있다.")
+    void updateProfileWithSameNickname() {
         // given
         final String email = "updateProfileWithSameNickname@test.com";
         final String password = "updateProfileWithSameNickname-password";
@@ -218,8 +221,8 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     @Test
-    @DisplayName("회원정보 수정 실패 - 중복 닉네임으로 수정")
-    void updateProfileDuplicateNicknameTest() {
+    @DisplayName("이미 존재하는 닉네임으로 회원정보를 수정할 수 없다.")
+    void updateProfileWithDuplicateNickname() {
         // given
         final String nickname1 = "updateProfileDupNickname-1";
         final String nickname2 = "updateProfileDupNickname-2";
@@ -248,8 +251,8 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     @Test
-    @DisplayName("회원정보 수정 실패 - 탈퇴 회원")
-    void updateProfileWithdrawMemberTest() {
+    @DisplayName("탈퇴 회원은 회원정보를 수정할 수 없다.")
+    void updateProfileByWithdrawnMember() {
         // given
         final String email = "updateProfileWithdrawMemberTest@test.com";
         final String password = "updateProfileWithdrawMemberTest-password";
@@ -270,9 +273,10 @@ class MemberServiceTest extends IntegrationTest {
     }
     
     //==회원 탈퇴==//
+    
     @Test
     @DisplayName("회원 탈퇴 시 DELETED 상태가 된다.")
-    void withdrawTest() {
+    void withdraw() {
         // given
         final String email = "withdrawTest@test.com";
         final String password = "withdrawTest-password";
@@ -289,18 +293,3 @@ class MemberServiceTest extends IntegrationTest {
         assertThat(foundMember.getStatus()).isEqualTo(MemberStatus.DELETED);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

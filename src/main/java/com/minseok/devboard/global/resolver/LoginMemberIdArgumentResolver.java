@@ -22,14 +22,14 @@ public class LoginMemberIdArgumentResolver implements HandlerMethodArgumentResol
     
     /**
      * - @LoginMemberId가 사용되는 컨트롤러 -> 로그인 필수 URL
-     *
+     * <p>
      * - 현재 정상 요청 흐름
-     *   1. LoginCheckInterceptor -> LOGIN_MEMBER_ID 세션 존재 확인
-     *   2. 세션 존재 시, Controller 진입 허용
-     *   3. LoginMemberIdArgumentResolver -> loginMemberId 반환
-     *
+     * 1. LoginCheckInterceptor -> LOGIN_MEMBER_ID 세션 존재 확인
+     * 2. 세션 존재 시, Controller 진입 허용
+     * 3. LoginMemberIdArgumentResolver -> loginMemberId 반환
+     * <p>
      * - 즉, LoginMemberIdArgumentResolver는 절대 null일 수 없음 (시스템 불변식)
-     *    => null이라면, 버그 -> LoginCheckInterceptor 또는 적용 path 수정 필요
+     * => null이라면, 버그 -> LoginCheckInterceptor 또는 적용 path 수정 필요
      */
     @Override
     public @Nullable Object resolveArgument(final MethodParameter parameter,

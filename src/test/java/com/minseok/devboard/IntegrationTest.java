@@ -11,20 +11,3 @@ public abstract class IntegrationTest {
     
     protected static final String ADMIN_EMAIL = "testAdmin@devboard.com";
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -9,17 +9,17 @@ import static lombok.AccessLevel.PRIVATE;
 
 @Getter
 @AllArgsConstructor(access = PRIVATE)
-public class UpdateBoardResponse {
+public class BoardUpdateResponse {
     
     private final Long boardId;
     private final String title;
     private final String content;
     private final BoardCategory category;
     
-    public static UpdateBoardResponse toResponse(final Board board) {
+    public static BoardUpdateResponse toResponse(final Board board) {
         assert (board != null);
         
-        return new UpdateBoardResponse(board.getId(),
+        return new BoardUpdateResponse(board.getId(),
                                        board.getTitle(),
                                        board.getContent(),
                                        board.getCategory());

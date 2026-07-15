@@ -4,7 +4,7 @@ import com.minseok.devboard.board.dto.request.UpdateBoardRequest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
-import com.minseok.devboard.board.dto.response.UpdateBoardResponse;
+import com.minseok.devboard.board.dto.response.BoardUpdateResponse;
 import com.minseok.devboard.board.service.BoardService;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import com.minseok.devboard.member.service.MemberService;
@@ -38,16 +38,16 @@ public class BoardController {
     private static final String VIEWED_BOARDS_SEPARATOR = ":";
     private static final int VIEW_COOKIE_MAX_AGE = 60 * 60 * 24; // 24시간
     
-    private final BoardService boardService;
     private final MemberService memberService;
+    private final BoardService boardService;
     
     /**
      * 게시글 작성 폼
      */
     @GetMapping("/write")
-    public String writeForm(final @LoginMemberId Long memberId,
-                            final @ModelAttribute WriteBoardRequest writeBoardRequest,
-                            final Model model) {
+    public String writeBoardForm(final @LoginMemberId Long memberId,
+                                 final @ModelAttribute WriteBoardRequest writeBoardRequest,
+                                 final Model model) {
         model.addAttribute("categories",
                            boardService.getWritableCategories(memberId));
         return resolveView("write");
@@ -57,11 +57,11 @@ public class BoardController {
      * 게시글 작성
      */
     @PostMapping("/write")
-    public String write(final @LoginMemberId Long memberId,
-                        final @Valid @ModelAttribute WriteBoardRequest writeBoardRequest,
-                        final BindingResult bindingResult,
-                        final Model model,
-                        final RedirectAttributes redirectAttributes) {
+    public String writeBoard(final @LoginMemberId Long memberId,
+                             final @Valid @ModelAttribute WriteBoardRequest writeBoardRequest,
+                             final BindingResult bindingResult,
+                             final Model model,
+                             final RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("categories",
                                boardService.getWritableCategories(memberId));
@@ -88,17 +88,21 @@ public class BoardController {
         increaseViewCountIfNeeded(boardId, viewedBoards, httpResponse);
         
         final BoardDetailResponse boardDetailResponse = boardService.readBoard(boardId);
+        model.addAttribute("board", boardDetailResponse);
+        
+        final boolean isLogin = loginMemberId != null;
+        model.addAttribute("isLogin", isLogin);
         
         boolean canEdit = false;
         boolean canDelete = false;
         
-        if (loginMemberId != null) {
-            final boolean isWriter = boardDetailResponse.getWriterId().equals(loginMemberId);
+        if (isLogin) {
+            final boolean isWriter = boardDetailResponse.getWriterId()
+                                                        .equals(loginMemberId);
             canEdit = isWriter;
             canDelete = isWriter || memberService.isAdmin(loginMemberId);
         }
         
-        model.addAttribute("board", boardDetailResponse);
         model.addAttribute("canEdit", canEdit);
         model.addAttribute("canDelete", canDelete);
         
@@ -130,7 +134,7 @@ public class BoardController {
     public String editForm(final @LoginMemberId Long loginMemberId,
                            final @PathVariable Long boardId,
                            final Model model) {
-        final UpdateBoardResponse response = boardService.getBoardForUpdate(loginMemberId, boardId);
+        final BoardUpdateResponse response = boardService.getBoardForUpdate(loginMemberId, boardId);
         
         final UpdateBoardRequest request = UpdateBoardRequest.from(response);
         model.addAttribute("updateBoardRequest", request);

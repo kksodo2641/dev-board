@@ -18,8 +18,8 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
     public boolean preHandle(final HttpServletRequest request,
                              final HttpServletResponse response,
                              final Object handler) throws Exception {
-        // 비로그인 시에도, 게시글 목록/상세 조회 허용
-        if (isPublicBoardRequest(request.getRequestURI())) {
+        // 비로그인 시에도 게시글 목록/상세, 댓글 목록 조회 허용
+        if (isPublicRequest(request)) {
             return true;
         }
         
@@ -36,15 +36,27 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
     }
     
     /**
-     * [게시글 목록/상세 조회] -> 비로그인도 접근 허용
+     * 비로그인 시에도 접근 가능한 요청인지 확인
+     * <p>
+     * 1. 게시글 목록
+     * <p>
+     * 2. 게시글 상세
+     * <p>
+     * 3. 댓글 목록
      */
-    private static boolean isPublicBoardRequest(final String requestURI) {
-        assert (requestURI != null);
+    private static boolean isPublicRequest(final HttpServletRequest request) {
+        assert (request != null);
+        
+        final String requestMethod = request.getMethod();
+        final String requestURI = request.getRequestURI();
+        
+        final boolean isGet = requestMethod.equals("GET");
         
         final boolean isBoardList = requestURI.equals("/boards");
         final boolean isBoardDetail = requestURI.matches("^/boards/\\d+$"); // 예: /boards/123
+        final boolean isCommentList = requestURI.matches("^/boards/\\d+/comments$");
         
-        return isBoardList || isBoardDetail;
+        return isGet && (isBoardList || isBoardDetail || isCommentList);
     }
     
     private static String getEncodedRedirectURL(final HttpServletRequest request) {

@@ -36,6 +36,8 @@ Soft Delete 정책을 적용하며, 탈퇴 회원 정보는 물리 삭제하지 
 | created_at    | DATETIME     | NOT NULL                                                                         | 생성 일시            |
 | updated_at    | DATETIME     | NOT NULL                                                                         | 수정 일시            |
 
+---
+
 ### 2. BOARD
 
 #### 설명
@@ -58,21 +60,25 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 | created_at | DATETIME     | NOT NULL                                                                      | 생성 일시     |
 | updated_at | DATETIME     | NOT NULL                                                                      | 수정 일시     |
 
+---
+
 ### 3. COMMENT
 
 #### 설명
 
 **댓글 및 대댓글** 정보를 저장하는 테이블
 
-(향후 구현 예정)
+Soft Delete 정책을 적용하며, 삭제된 댓글도 데이터는 유지된다.
+
+댓글과 대댓글은 동일한 COMMENT 테이블에서 관리하며, `parent_id`를 통해 자기 참조 관계를 구성한다.
 
 #### 컬럼 및 제약조건
 
 | 컬럼명        | 타입          | 제약조건                                                                          | 설명        |
 |------------|-------------|-------------------------------------------------------------------------------|-----------|
 | comment_id | BIGINT      | PK (auto_increment)                                                           | 댓글 ID     |
-| board_id   | BIGINT      | FK, NOT NULL                                                                  | 게시글 ID    |
 | member_id  | BIGINT      | FK, NOT NULL                                                                  | 작성자 회원 ID |
+| board_id   | BIGINT      | FK, NOT NULL                                                                  | 게시글 ID    |
 | parent_id  | BIGINT      | FK, NULL                                                                      | 부모 댓글 ID  |
 | content    | TEXT        | NOT NULL                                                                      | 댓글 내용     |
 | status     | VARCHAR(20) | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE' | 상태        |
@@ -81,8 +87,13 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 
 #### 비고
 
-- parent_id가 NULL이면 최상위 댓글을 의미
-- parent_id가 존재하면 대댓글을 의미
+- `parent_id`가 NULL이면 최상위 댓글을 의미한다.
+- `parent_id`가 존재하면 대댓글을 의미한다.
+- `parent_id`는 COMMENT.comment_id를 참조하는 Self Reference 외래키이다.
+- 현재 애플리케이션 정책상 대댓글은 1단계까지만 허용한다.
+- 삭제된 댓글은 물리 삭제하지 않고, `status`를 `DELETED`로 변경한다.
+
+---
 
 ### 4. BOARD_LIKE
 
@@ -97,8 +108,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 | 컬럼명           | 타입       | 제약조건                | 설명     |
 |---------------|----------|---------------------|--------|
 | board_like_id | BIGINT   | PK (auto_increment) | 좋아요 ID |
-| board_id      | BIGINT   | FK, NOT NULL        | 게시글 ID |
 | member_id     | BIGINT   | FK, NOT NULL        | 회원 ID  |
+| board_id      | BIGINT   | FK, NOT NULL        | 게시글 ID |
 | created_at    | DATETIME | NOT NULL            | 생성 일시  |
 | updated_at    | DATETIME | NOT NULL            | 수정 일시  |
 
@@ -109,6 +120,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 #### 비고
 
 - 동일 회원은 동일 게시글에 딱 한 번만 좋아요를 누를 수 있다.
+
+---
 
 ### 5. UPLOAD_FILE
 
@@ -147,6 +160,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 - 하나의 회원은 여러 개의 게시글을 작성할 수 있다.
 - 하나의 게시글은 반드시 하나의 회원에 의해 작성된다.
 
+---
+
 ### 2. MEMBER ↔ COMMENT
 
 #### Cardinality
@@ -161,6 +176,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 
 - 하나의 회원은 여러 개의 댓글을 작성할 수 있다.
 - 하나의 댓글은 반드시 하나의 회원에 의해 작성된다.
+
+---
 
 ### 3. BOARD ↔ COMMENT
 
@@ -177,6 +194,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 - 하나의 게시글은 여러 개의 댓글을 가질 수 있다.
 - 하나의 댓글은 반드시 하나의 게시글에 속한다.
 
+---
+
 ### 4. COMMENT ↔ COMMENT
 
 #### Cardinality
@@ -192,6 +211,9 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 - 하나의 댓글은 여러 개의 대댓글을 가질 수 있다.
 - 하나의 대댓글은 반드시 하나의 부모 댓글에 속한다.
 - 최상위 댓글은 parent_id가 NULL이다.
+- 현재 애플리케이션 정책상 대댓글은 1단계까지만 허용한다.
+
+---
 
 ### 5. BOARD ↔ UPLOAD_FILE
 
@@ -208,6 +230,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 - 하나의 게시글은 여러 개의 첨부파일을 가질 수 있다.
 - 하나의 첨부파일은 반드시 하나의 게시글에 속한다.
 
+---
+
 ### 6. MEMBER ↔ BOARD_LIKE
 
 #### Cardinality
@@ -222,6 +246,8 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 
 - 하나의 회원은 여러 개의 게시글에 좋아요를 누를 수 있다.
 - 하나의 좋아요는 반드시 하나의 회원에 속한다.
+
+---
 
 ### 7. BOARD ↔ BOARD_LIKE
 

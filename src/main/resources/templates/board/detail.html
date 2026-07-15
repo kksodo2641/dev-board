@@ -1,68 +1,125 @@
 <!DOCTYPE html>
 <html xmlns:th="https://www.thymeleaf.org" lang="ko">
+
 <head>
     <meta charset="UTF-8">
+    <title>게시글 상세</title>
+
     <link rel="stylesheet" th:href="@{/css/common.css}">
     <link rel="stylesheet" th:href="@{/css/board.css}">
-    <title>게시글 상세</title>
+    <link rel="stylesheet" th:href="@{/css/comment.css}">
 </head>
 
 <body>
+
 <div class="container">
-    <div class="board-card">
-
-        <div class="header">
-            <h1>Dev Board</h1>
-            <p>게시글 상세</p>
-        </div>
-
-        <div class="board-title">
-            <h2 th:text="${board.title}">제목</h2>
-        </div>
-
-        <div class="board-meta">
-            <div>
-                <strong>작성자</strong>
-                <span th:text="${board.writerNickname}">작성자</span>
+    <div class="detail-container">
+        <!-- 게시글 -->
+        <div class="board-card">
+            <div class="header">
+                <h1>Dev Board</h1>
+                <p>게시글 상세</p>
             </div>
 
-            <div>
-                <strong>카테고리</strong>
-                <span th:text="${board.category.description}">카테고리</span>
+            <div class="board-title">
+                <h2 th:text="${board.title}">제목</h2>
             </div>
 
-            <div>
-                <strong>작성일시</strong>
-                <span th:text="${#temporals.format(board.createdAt, 'yyyy-MM-dd HH:mm')}">작성일시</span>
+            <div class="board-meta">
+                <div>
+                    <strong>작성자</strong>
+                    <span th:text="${board.writerNickname}">작성자</span>
+                </div>
+                <div>
+                    <strong>카테고리</strong>
+                    <span th:text="${board.category.description}">카테고리</span>
+                </div>
+                <div>
+                    <strong>작성일시</strong>
+                    <span th:text="${#temporals.format(board.createdAt, 'yyyy-MM-dd HH:mm')}">작성일시</span>
+                </div>
+                <div>
+                    <strong>조회수</strong>
+                    <span th:text="${board.viewCount}">0</span>
+                </div>
             </div>
 
-            <div>
-                <strong>조회수</strong>
-                <span th:text="${board.viewCount}">카테고리</span>
+            <div class="board-content">
+                <p th:text="${board.content}">게시글 내용</p>
+            </div>
+
+            <div th:if="${canEdit || canDelete}" class="button-group">
+                <a th:if="${canEdit}"
+                   th:href="@{|/boards/${board.boardId}/edit|}" class="btn btn-edit">게시글 수정</a>
+
+                <form th:if="${canDelete}"
+                      th:action="@{|/boards/${board.boardId}/delete|}" method="post">
+
+                    <button type="submit" class="btn btn-danger"
+                            onclick="return confirm('정말 삭제하시겠습니까?');">게시글 삭제
+                    </button>
+                </form>
             </div>
         </div>
 
-        <div class="board-content">
-            <p th:text="${board.content}">
-                게시글 내용
-            </p>
+        <!-- 댓글 -->
+        <div class="comment-card"
+             th:data-board-id="${board.boardId}"
+             th:data-login="${isLogin}">
+
+            <div class="comment-header">
+                <h2>💬 댓글</h2>
+                <span class="comment-count">
+                    (<span id="comment-count">0</span>)
+                </span>
+            </div>
+
+            <!-- 댓글 목록 + 대댓글 작성(로그인 시) -->
+            <div id="comment-list" class="comment-list">
+                <div class="comment-empty">댓글을 불러오는 중입니다.</div>
+            </div>
+
+            <!-- 일반 댓글 작성 -->
+            <div class="comment-write">
+                <div class="comment-write-title">댓글 작성</div>
+
+                <p class="comment-description">
+                    게시글에 대한 의견을 자유롭게 남겨보세요.
+                </p>
+
+                <form id="comment-form">
+                    <textarea id="comment-content"
+                              name="content"
+                              rows="4"
+                              placeholder="댓글을 입력해주세요."
+                              th:disabled="${!isLogin}"></textarea>
+
+                    <div id="comment-error" class="error"></div>
+
+                    <div class="button-group comment-submit">
+                        <button th:if="${isLogin}"
+                                type="submit" class="btn btn-primary">
+                            댓글 작성
+                        </button>
+
+                        <a th:unless="${isLogin}" class="btn btn-primary"
+                           th:href="@{/members/login(redirectURL=${'/boards/' + board.boardId})}">
+                            로그인 후 댓글 작성
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div class="button-group">
-            <a th:href="@{/boards}" class="btn btn-primary">목록으로</a>
-
-            <a th:if="${canEdit}" class="btn btn-edit"
-               th:href="@{|/boards/${board.boardId}/edit|}">게시글 수정</a>
-
-            <form th:if="${canDelete}" th:action="@{|/boards/${board.boardId}/delete|}" method="post">
-                <button type="submit" onclick="return confirm('정말 삭제하시겠습니까?');"
-                        class="btn btn-danger">게시글 삭제
-                </button>
-            </form>
-
-            <a th:href="@{/}" class="btn btn-secondary">홈으로</a>
+        <div class="detail-footer">
+            <div class="button-group">
+                <a th:href="@{/boards}" class="btn btn-primary">목록으로</a>
+                <a th:href="@{/}" class="btn btn-secondary">홈으로</a>
+            </div>
         </div>
-    </div>
+    </div> <!--/detail-container-->
 </div> <!--/container-->
+
+<script th:src="@{/js/comment.js}"></script>
 </body>
 </html>

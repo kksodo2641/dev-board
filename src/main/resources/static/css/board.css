@@ -1,5 +1,5 @@
 .board-card {
-    width: 800px;
+    width: 100%;
     background: white;
     padding: 40px;
     border-radius: 12px;
@@ -52,6 +52,10 @@
 .board-content p {
     white-space: pre-wrap;
     overflow-wrap: break-word;
+}
+
+.board-card > .button-group {
+    margin-top: 32px;
 }
 
 .board-list-container {
@@ -178,3 +182,13 @@
     margin-right: 6px;
 }
 
+.detail-container {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    width: 800px;
+}
+
+.detail-footer {
+    margin-top: 8px;
+}
