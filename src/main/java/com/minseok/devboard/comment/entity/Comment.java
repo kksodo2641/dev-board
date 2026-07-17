@@ -128,7 +128,7 @@ public class Comment extends BaseTimeEntity {
         return status == DELETED;
     }
     
-    public boolean isWriter(final Long memberId) {
+    public boolean isWrittenBy(final Long memberId) {
         assert (memberId != null);
         return member.getId().equals(memberId);
     }

@@ -4,12 +4,15 @@ import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardStatus;
 import com.minseok.devboard.board.exception.BoardNotFoundException;
 import com.minseok.devboard.board.repository.BoardRepository;
+import com.minseok.devboard.comment.dto.request.UpdateCommentRequest;
 import com.minseok.devboard.comment.dto.request.WriteCommentRequest;
 import com.minseok.devboard.comment.dto.response.CommentResponse;
 import com.minseok.devboard.comment.entity.Comment;
+import com.minseok.devboard.comment.entity.CommentStatus;
 import com.minseok.devboard.comment.exception.CommentNotFoundException;
 import com.minseok.devboard.comment.exception.ReplyNotAllowedException;
 import com.minseok.devboard.comment.repository.CommentRepository;
+import com.minseok.devboard.global.exception.AccessDeniedException;
 import com.minseok.devboard.member.entity.Member;
 import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.MemberNotFoundException;
@@ -46,8 +49,8 @@ public class CommentService {
                              final WriteCommentRequest request) {
         assert (request != null);
         
-        final Member member = findActiveMember(memberId);
-        final Board board = findActiveBoard(boardId);
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Board board = findActiveBoardElseThrow(boardId);
         
         // 댓글 작성
         if (request.getParentId() == null) {
@@ -119,6 +122,37 @@ public class CommentService {
         return result;
     }
     
+    /**
+     * 댓글 수정
+     *
+     * @throws MemberNotFoundException 존재하지 않거나 탈퇴 회원인 경우
+     * @throws CommentNotFoundException 존재하지 않거나 삭제된 댓글인 경우
+     * @throws BoardNotFoundException 삭제된 게시글에 속한 댓글인 경우
+     * @throws AccessDeniedException 수정 권한이 없는 경우
+     */
+    @Transactional
+    public void updateComment(final Long memberId,
+                              final Long commentId,
+                              final UpdateCommentRequest request) {
+        assert (memberId != null);
+        assert (commentId != null);
+        assert (request != null);
+        
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Comment comment = findActiveCommentElseThrow(commentId);
+        final Board board = comment.getBoard();
+        
+        if (board.isDeleted()) {
+            throw new BoardNotFoundException();
+        }
+        
+        if (!comment.isWrittenBy(member.getId())) {
+            throw new AccessDeniedException();
+        }
+        
+        comment.update(request.getContent());
+    }
+    
     //==내부 메서드==//
     
     /**
@@ -126,7 +160,8 @@ public class CommentService {
      *
      * @throws MemberNotFoundException 존재하지 않거나 탈퇴 회원인 경우
      */
-    private Member findActiveMember(final Long memberId) {
+    private Member findActiveMemberElseThrow(final Long memberId) {
+        assert (memberId != null);
         return memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
                                .orElseThrow(MemberNotFoundException::new);
     }
@@ -136,9 +171,21 @@ public class CommentService {
      *
      * @throws BoardNotFoundException 존재하지 않거나 삭제된 게시글인 경우
      */
-    private Board findActiveBoard(final Long boardId) {
+    private Board findActiveBoardElseThrow(final Long boardId) {
+        assert (boardId != null);
         return boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
                               .orElseThrow(BoardNotFoundException::new);
+    }
+    
+    /**
+     * 활성 댓글 조회
+     *
+     * @throws CommentNotFoundException 존재하지 않거나 삭제된 댓글인 경우
+     */
+    private Comment findActiveCommentElseThrow(final Long commentId) {
+        assert (commentId != null);
+        return commentRepository.findByIdAndStatus(commentId, CommentStatus.ACTIVE)
+                                .orElseThrow(CommentNotFoundException::new);
     }
     
     /**
