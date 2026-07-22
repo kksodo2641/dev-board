@@ -2,25 +2,38 @@ document.addEventListener("DOMContentLoaded", () => {
     // 댓글 목록 로딩
     loadComments();
 
-    // 대댓글 작성/취소 이벤트
+    // 대댓글 작성/수정 이벤트
     document.addEventListener("click", event => {
-        if (event.target.classList.contains("comment-action-btn")) {
-            toggleReplyForm(event.target);
-            return;
-        }
+        const target = event.target;
+        const classList = target.classList;
 
-        if (event.target.classList.contains("cancel-reply-btn")) {
-            closeReplyForm(event.target);
+        if (classList.contains("reply-action-btn")) {
+            toggleReplyForm(target);
+
+        } else if (classList.contains("cancel-reply-btn")) {
+            closeReplyForm(target);
+
+        } else if (classList.contains("edit-comment-btn")) {
+            openEditForm(target);
+
+        } else if (classList.contains("cancel-edit-btn")) {
+            closeEditForm(target);
         }
     });
 
-    // 댓글 작성 이벤트
+    // 댓글 작성/수정 이벤트
     document.addEventListener("submit", event => {
-        if (event.target.id === "comment-form") {
+        const target = event.target;
+        const classList = target.classList;
+
+        if (target.id === "comment-form") {
             submitComment(event);
 
-        } else if (event.target.classList.contains("reply-form")) {
+        } else if (classList.contains("reply-form")) {
             submitReply(event);
+
+        } else if (classList.contains("comment-edit-form")) {
+            submitEditComment(event);
         }
     });
 });
@@ -117,6 +130,32 @@ async function submitReply(event) {
     }
 }
 
+async function submitEditComment(event) {
+    event.preventDefault();
+
+    const editForm = event.target;
+    const textarea = editForm.querySelector(".comment-edit-textarea");
+    const error = editForm.querySelector(".edit-error");
+
+    const commentId = Number(editForm.dataset.commentId);
+    const content = textarea.value.trim();
+
+    if (content.length === 0) {
+        error.textContent = "댓글 내용을 입력해주세요.";
+        textarea.focus();
+        return;
+    }
+
+    try {
+        await updateComment(commentId, content);
+        await loadComments();
+
+    } catch (exception) {
+        console.error(exception);
+        error.textContent = exception.message;
+    }
+}
+
 async function writeComment(content, parentId) {
     const commentCard = document.querySelector(".comment-card");
     const boardId = commentCard.dataset.boardId;
@@ -137,6 +176,28 @@ async function writeComment(content, parentId) {
     if (!response.ok) {
         const errorResponse = await response.json();
         throw new Error(errorResponse.message || "댓글 작성에 실패했습니다.");
+    }
+}
+
+async function updateComment(commentId, content) {
+    const response = await fetch(`/comments/${commentId}`, {
+        method: "PATCH",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            content: content
+        })
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+
+        throw new Error(
+            errorResponse.message || "댓글 수정에 실패했습니다."
+        );
     }
 }
 
@@ -173,7 +234,9 @@ function createCommentElement(comment) {
     const article = document.createElement("article");
     article.classList.add("comment-item");
 
-    if (comment.hasParent) {
+    const isReply = comment.hasParent;
+
+    if (isReply) {
         article.classList.add("comment-reply");
     }
 
@@ -183,8 +246,18 @@ function createCommentElement(comment) {
     const commentCard = document.querySelector(".comment-card");
     const isLogin = commentCard.dataset.login === "true";
 
-    if (isLogin && !comment.hasParent) {
-        article.appendChild(createCommentFooter(comment));
+    const canReply = isLogin && !isReply;
+    const hasAction = canReply || comment.canEdit || comment.canDelete;
+
+    if (hasAction) {
+        article.appendChild(createCommentFooter(comment, canReply));
+    }
+
+    if (comment.canEdit) {
+        article.appendChild(createEditForm(comment));
+    }
+
+    if (canReply) {
         article.appendChild(createReplyForm(comment));
     }
 
@@ -227,23 +300,105 @@ function createCommentContent(comment) {
     return content;
 }
 
-function createCommentFooter(comment) {
+function createCommentFooter(comment, canReply) {
     const footer = document.createElement("footer");
     footer.classList.add("comment-footer");
 
     const actions = document.createElement("div");
     actions.classList.add("comment-actions");
 
-    const replyButton = document.createElement("button");
-    replyButton.type = "button";
-    replyButton.classList.add("comment-action-btn");
-    replyButton.dataset.commentId = comment.commentId;
-    replyButton.textContent = "↳ 답글 달기";
+    if (canReply) {
+        const replyButton = document.createElement("button");
+        replyButton.type = "button";
+        replyButton.classList.add(
+            "comment-action-btn",
+            "reply-action-btn"
+        );
+        replyButton.dataset.commentId = comment.commentId;
+        replyButton.textContent = "↳ 답글 달기";
 
-    actions.appendChild(replyButton);
+        actions.appendChild(replyButton);
+    }
+
+    if (comment.canEdit) {
+        const editButton = document.createElement("button");
+        editButton.type = "button";
+        editButton.classList.add(
+            "comment-action-btn",
+            "edit-comment-btn"
+        );
+        editButton.dataset.commentId = comment.commentId;
+        editButton.textContent = "수정";
+
+        actions.appendChild(editButton);
+    }
+
+    if (comment.canDelete) {
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.classList.add(
+            "comment-action-btn",
+            "delete-comment-btn"
+        );
+        deleteButton.dataset.commentId = comment.commentId;
+        deleteButton.textContent = "삭제";
+
+        actions.appendChild(deleteButton);
+    }
+
     footer.appendChild(actions);
 
     return footer;
+}
+
+function createEditForm(comment) {
+    const form = document.createElement("form");
+
+    form.classList.add("comment-edit-form");
+    form.dataset.commentId = comment.commentId;
+
+    const textarea = document.createElement("textarea");
+    textarea.name = "content";
+    textarea.rows = 4;
+    textarea.maxLength = 2000;
+    textarea.classList.add("comment-edit-textarea");
+    textarea.value = comment.content;
+    textarea.dataset.originalContent = comment.content;
+
+    const error = document.createElement("div");
+    error.classList.add(
+        "error",
+        "edit-error"
+    );
+
+    const buttonGroup = document.createElement("div");
+    buttonGroup.classList.add("comment-edit-button-group");
+
+    const submitButton = document.createElement("button");
+    submitButton.type = "submit";
+    submitButton.classList.add(
+        "btn",
+        "btn-primary"
+    );
+    submitButton.textContent = "수정 완료";
+
+    const cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.classList.add(
+        "btn",
+        "btn-secondary",
+        "cancel-edit-btn"
+    );
+    cancelButton.textContent = "취소";
+
+    buttonGroup.appendChild(submitButton);
+    buttonGroup.appendChild(cancelButton);
+
+    form.appendChild(textarea);
+    form.appendChild(error);
+    form.appendChild(buttonGroup);
+
+    return form;
 }
 
 function createReplyForm(comment) {
@@ -323,35 +478,20 @@ function toggleReplyForm(button) {
     const commentItem = button.closest(".comment-item");
     const currentForm = commentItem.querySelector(".reply-form-container");
 
-    document
-        .querySelectorAll(".reply-form-container")
-        .forEach(form => {
-            if (form !== currentForm) {
-                form.style.display = "none";
+    // 열려 있는 모든 댓글 수정 폼 닫기
+    document.querySelectorAll(".comment-edit-form")
+            .forEach(form => hideEditForm(form));
 
-                const textarea = form.querySelector("textarea");
-                if (textarea !== null) {
-                    textarea.value = "";
+    // 현재 답글 폼을 제외한 다른 답글 폼 닫기
+    document.querySelectorAll(".reply-form-container")
+            .forEach(form => {
+                if (form !== currentForm) {
+                    hideReplyForm(form);
                 }
-
-                const error = form.querySelector(".reply-error");
-                if (error !== null) {
-                    error.textContent = "";
-                }
-            }
-        });
+            });
 
     if (currentForm.style.display === "block") {
-        currentForm.style.display = "none";
-
-        currentForm.querySelector("textarea")
-                   .value = "";
-
-        const error = currentForm.querySelector(".reply-error");
-        if (error !== null) {
-            error.textContent = "";
-        }
-
+        hideReplyForm(currentForm);
         return;
     }
 
@@ -361,15 +501,72 @@ function toggleReplyForm(button) {
 
 function closeReplyForm(button) {
     const formContainer = button.closest(".reply-form-container");
+    hideReplyForm(formContainer);
+}
+
+function hideReplyForm(formContainer) {
+    const textarea = formContainer.querySelector("textarea");
+    const error = formContainer.querySelector(".reply-error");
 
     formContainer.style.display = "none";
-    formContainer.querySelector("textarea")
-                 .value = "";
+    textarea.value = "";
+    error.textContent = "";
+}
 
-    const error = formContainer.querySelector(".reply-error");
-    if (error !== null) {
-        error.textContent = "";
+function openEditForm(button) {
+    const commentItem = button.closest(".comment-item");
+    const currentForm = commentItem.querySelector(".comment-edit-form");
+
+    document.querySelectorAll(".reply-form-container")
+            .forEach(form => hideReplyForm(form));
+
+    document.querySelectorAll(".comment-edit-form")
+            .forEach(form => {
+                if (form !== currentForm) {
+                    hideEditForm(form);
+                }
+            });
+
+    const content = commentItem.querySelector(".comment-content");
+    const footer = commentItem.querySelector(".comment-footer");
+
+    content.style.display = "none";
+
+    if (footer !== null) {
+        footer.style.display = "none";
     }
+
+    currentForm.style.display = "block";
+
+    const textarea = currentForm.querySelector(".comment-edit-textarea");
+    textarea.focus();
+    textarea.setSelectionRange(
+        textarea.value.length,
+        textarea.value.length
+    );
+}
+
+function closeEditForm(button) {
+    const form = button.closest(".comment-edit-form");
+    hideEditForm(form);
+}
+
+function hideEditForm(form) {
+    const commentItem = form.closest(".comment-item");
+    const content = commentItem.querySelector(".comment-content");
+    const footer = commentItem.querySelector(".comment-footer");
+    const textarea = form.querySelector(".comment-edit-textarea");
+    const error = form.querySelector(".edit-error");
+
+    form.style.display = "none";
+    content.style.display = "";
+
+    if (footer !== null) {
+        footer.style.display = "";
+    }
+
+    textarea.value = textarea.dataset.originalContent;
+    error.textContent = "";
 }
 
 function formatDateTime(createdAt) {

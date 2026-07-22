@@ -21,22 +21,16 @@ public class LoginMemberIdArgumentResolver implements HandlerMethodArgumentResol
     }
     
     /**
-     * - @LoginMemberId가 사용되는 컨트롤러 -> 로그인 필수 URL
-     * <p>
-     * - 현재 정상 요청 흐름
-     * 1. LoginCheckInterceptor -> LOGIN_MEMBER_ID 세션 존재 확인
-     * 2. 세션 존재 시, Controller 진입 허용
-     * 3. LoginMemberIdArgumentResolver -> loginMemberId 반환
-     * <p>
-     * - 즉, LoginMemberIdArgumentResolver는 절대 null일 수 없음 (시스템 불변식)
-     * => null이라면, 버그 -> LoginCheckInterceptor 또는 적용 path 수정 필요
+     * 세션에서 로그인 회원 ID 조회
+     *
+     * @return 로그인 회원 ID, 선택적 조회에서 로그인하지 않은 경우 {@code null}
+     * @throws IllegalStateException 필수 로그인 요청에 회원 ID가 없는 경우
      */
     @Override
     public @Nullable Object resolveArgument(final MethodParameter parameter,
                                             @Nullable final ModelAndViewContainer mavContainer,
                                             final NativeWebRequest webRequest,
                                             @Nullable final WebDataBinderFactory binderFactory) throws Exception {
-        
         final HttpServletRequest httpRequest = (HttpServletRequest) webRequest.getNativeRequest();
         final HttpSession session = httpRequest.getSession(false);
         
@@ -44,7 +38,11 @@ public class LoginMemberIdArgumentResolver implements HandlerMethodArgumentResol
                                    ? null
                                    : (Long) session.getAttribute(SessionConst.LOGIN_MEMBER_ID);
         
-        if (loginMemberId == null) { // 시스템 불변식(invariant) 검증
+        final LoginMemberId annotation = parameter.getParameterAnnotation(LoginMemberId.class);
+        assert (annotation != null);
+        
+        // 시스템 불변식(invariant) 검증
+        if (loginMemberId == null && annotation.required()) {
             throw new IllegalStateException("@LoginMemberId requires login session.");
         }
         

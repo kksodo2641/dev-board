@@ -18,6 +18,7 @@ import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.MemberNotFoundException;
 import com.minseok.devboard.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.minseok.devboard.comment.dto.response.CommentResponse.toResponse;
 
 @Service
 @Transactional(readOnly = true)
@@ -85,7 +88,8 @@ public class CommentService {
      *
      * @throws BoardNotFoundException 존재하지 않는 게시글인 경우
      */
-    public List<CommentResponse> getCommentList(final Long boardId) {
+    public List<CommentResponse> getCommentList(final @Nullable Long readerId,
+                                                final Long boardId) {
         assert (boardId != null);
         
         // 삭제 게시글도 포함해서 조회
@@ -109,14 +113,24 @@ public class CommentService {
             }
         }
         
+        // 회원 조회
+        final Member member = readerId == null
+                              ? null
+                              : memberRepository.findByIdAndStatus(readerId, MemberStatus.ACTIVE)
+                                                .orElse(null);
+        
         final List<CommentResponse> result = new ArrayList<>();
         
         for (final Comment parent : parentComments) {
-            result.add(CommentResponse.toResponse(parent));
+            result.add(toResponse(parent,
+                                  canEdit(member, board, parent),
+                                  canDelete(member, board, parent)));
             
-            result.addAll(replyMap.get(parent.getId()).stream()
-                                  .map(CommentResponse::toResponse)
-                                  .toList());
+            for (final Comment reply : replyMap.get(parent.getId())) {
+                result.add(toResponse(reply,
+                                      canEdit(member, board, reply),
+                                      canDelete(member, board, reply)));
+            }
         }
         
         return result;
@@ -125,10 +139,10 @@ public class CommentService {
     /**
      * 댓글 수정
      *
-     * @throws MemberNotFoundException 존재하지 않거나 탈퇴 회원인 경우
+     * @throws MemberNotFoundException  존재하지 않거나 탈퇴 회원인 경우
      * @throws CommentNotFoundException 존재하지 않거나 삭제된 댓글인 경우
-     * @throws BoardNotFoundException 삭제된 게시글에 속한 댓글인 경우
-     * @throws AccessDeniedException 수정 권한이 없는 경우
+     * @throws BoardNotFoundException   삭제된 게시글에 속한 댓글인 경우
+     * @throws AccessDeniedException    수정 권한이 없는 경우
      */
     @Transactional
     public void updateComment(final Long memberId,
@@ -197,5 +211,36 @@ public class CommentService {
         assert (parentId != null);
         return commentRepository.findById(parentId)
                                 .orElseThrow(CommentNotFoundException::new);
+    }
+    
+    private boolean canEdit(final @Nullable Member member,
+                            final Board board,
+                            final Comment comment) {
+        assert (board != null);
+        assert (comment != null);
+        
+        if (member == null
+                || board.isDeleted()
+                || comment.isDeleted()) {
+            return false;
+        }
+        
+        return comment.isWrittenBy(member.getId());
+    }
+    
+    private boolean canDelete(final @Nullable Member member,
+                              final Board board,
+                              final Comment comment) {
+        assert (board != null);
+        assert (comment != null);
+        
+        if (member == null
+                || board.isDeleted()
+                || comment.isDeleted()) {
+            return false;
+        }
+        
+        return member.isAdmin()
+                || comment.isWrittenBy(member.getId());
     }
 }
