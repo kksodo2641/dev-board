@@ -18,6 +18,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } else if (classList.contains("cancel-edit-btn")) {
             closeEditForm(target);
+
+        } else if (classList.contains("delete-comment-btn")) {
+            handleDeleteComment(target);
         }
     });
 
@@ -198,6 +201,34 @@ async function updateComment(commentId, content) {
         throw new Error(
             errorResponse.message || "댓글 수정에 실패했습니다."
         );
+    }
+}
+
+async function handleDeleteComment(button) {
+    if (!confirm("댓글을 삭제하시겠습니까?")) {
+        return;
+    }
+
+    const commentId = Number(button.dataset.commentId);
+
+    try {
+        await deleteComment(commentId);
+        await loadComments();
+
+    } catch (exception) {
+        console.error(exception);
+        alert(exception.message);
+    }
+}
+
+async function deleteComment(commentId) {
+    const response = await fetch(`/comments/${commentId}`, {
+        method: "DELETE"
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(errorResponse.message || "댓글 삭제에 실패했습니다.");
     }
 }
 

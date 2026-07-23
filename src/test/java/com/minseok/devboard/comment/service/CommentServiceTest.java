@@ -523,11 +523,11 @@ class CommentServiceTest extends IntegrationTest {
     
     @Test
     @DisplayName("댓글 작성자가 아닌 일반 회원은 댓글 수정/삭제 권한이 없다.")
-    void getCommentListPermissionsForNonWriterMember() {
+    void getCommentListPermissionsForNotWriterMember() {
         // given
         final Long boardWriterId = createMember("boardWriter@example.com", "boardWriter");
         final Long commentWriterId = createMember("commentWriter@example.com", "commentWriter");
-        final Long nonWriterId = createMember("nonWriter@example.com", "nonWriter");
+        final Long notWriterId = createMember("notWriter@example.com", "notWriter");
         
         final Long boardId = createBoard(boardWriterId);
         
@@ -535,14 +535,14 @@ class CommentServiceTest extends IntegrationTest {
         final Long replyId = createReply(commentWriterId, boardId, commentId, "reply");
         
         // when
-        final List<CommentResponse> nonWriterCommentList = commentService.getCommentList(nonWriterId,
+        final List<CommentResponse> notWriterCommentList = commentService.getCommentList(notWriterId,
                                                                                          boardId);
         
         final List<CommentResponse> boardWriterCommentList = commentService.getCommentList(boardWriterId,
                                                                                            boardId);
         
         // then
-        assertThat(nonWriterCommentList)
+        assertThat(notWriterCommentList)
                 .extracting(CommentResponse::getCommentId,
                             CommentResponse::canEdit,
                             CommentResponse::canDelete)
@@ -1004,6 +1004,175 @@ class CommentServiceTest extends IntegrationTest {
                 () -> commentService.updateComment(memberId,
                                                    replyId,
                                                    new UpdateCommentRequest("new_reply")))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    //==댓글 삭제==//
+    
+    @Test
+    @DisplayName("댓글 작성자는 자신의 댓글을 삭제할 수 있다.")
+    void deleteCommentByWriter() {
+        // given
+        final Long adminId = getAdminMemberId();
+        final Long boardWriterId = createMember("boardWriter@test.com", "boardWriter");
+        final Long memberId = createMember("member@test.com", "member");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long memberCommentId = createComment(memberId, boardId, "memberComment");
+        final Long adminCommentId = createComment(adminId, boardId, "adminComment");
+        
+        final Long memberReplyId = createReply(memberId, boardId, adminCommentId, "memberReply");
+        final Long adminReplyId = createReply(adminId, boardId, memberCommentId, "adminReply");
+        
+        // when
+        commentService.deleteComment(memberId, memberCommentId);
+        commentService.deleteComment(memberId, memberReplyId);
+        commentService.deleteComment(adminId, adminCommentId);
+        commentService.deleteComment(adminId, adminReplyId);
+        
+        // then
+        final Comment memberComment = findCommentElseThrow(memberCommentId);
+        final Comment memberReply = findCommentElseThrow(memberReplyId);
+        final Comment adminComment = findCommentElseThrow(adminCommentId);
+        final Comment adminReply = findCommentElseThrow(adminReplyId);
+        
+        assertThat(memberComment.isDeleted()).isTrue();
+        assertThat(memberReply.isDeleted()).isTrue();
+        assertThat(adminComment.isDeleted()).isTrue();
+        assertThat(adminReply.isDeleted()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("관리자는 다른 회원의 댓글을 삭제할 수 있다.")
+    void deleteCommentByAdminMember() {
+        // given
+        final Long adminId = getAdminMemberId();
+        final Long memberId = createMember("member@test.com", "member");
+        
+        final Long boardId = createBoard(memberId);
+        
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        // when
+        commentService.deleteComment(adminId, commentId);
+        
+        // then
+        final Comment comment = findCommentElseThrow(commentId);
+        assertThat(comment.isDeleted()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("일반 회원은 다른 회원의 댓글을 삭제할 수 없다.")
+    void deleteCommentByNotWriter() {
+        // given
+        final Long writerId = createMember("writer@test.com", "writer");
+        final Long notWriterId = createMember("notWriter@test.com", "notWriter");
+        
+        final Long boardId = createBoard(notWriterId);
+        
+        final Long commentId = createComment(writerId, boardId, "comment");
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(notWriterId, commentId))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 회원은 댓글을 삭제할 수 없다.")
+    void deleteCommentByNotFoundMember() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(Long.MAX_VALUE, commentId))
+                .isInstanceOf(MemberNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("탈퇴 회원은 댓글을 삭제할 수 없다.")
+    void deleteCommentByWithdrawnMember() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        memberService.withdraw(memberId);
+        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.DELETED)
+                                              .orElseThrow();
+        assertThat(member.isWithdrawn()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(memberId, commentId))
+                .isInstanceOf(MemberNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 댓글은 삭제할 수 없다.")
+    void deleteNotFoundComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(memberId, Long.MAX_VALUE))
+                .isInstanceOf(CommentNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("이미 삭제된 댓글은 다시 삭제할 수 없다.")
+    void deleteCommentWithDeletedComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        commentService.deleteComment(memberId, commentId);
+        final Comment comment = findCommentElseThrow(commentId);
+        assertThat(comment.isDeleted()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(memberId, commentId))
+                .isInstanceOf(CommentNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("삭제된 부모 댓글의 대댓글은 삭제할 수 있다.")
+    void deleteReplyWithDeletedParentComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long parentId = createComment(memberId, boardId, "parent");
+        final Long replyId = createReply(memberId, boardId, parentId, "reply");
+        
+        commentService.deleteComment(memberId, parentId);
+        final Comment parent = findCommentElseThrow(parentId);
+        assertThat(parent.isDeleted()).isTrue();
+        
+        // when
+        commentService.deleteComment(memberId, replyId);
+        
+        // then
+        final Comment reply = findCommentElseThrow(replyId);
+        assertThat(reply.isDeleted()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글의 댓글은 삭제할 수 없다.")
+    void deleteCommentInDeletedBoard() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        boardService.deleteBoard(memberId, boardId);
+        final Board board = boardRepository.findByIdAndStatus(boardId, BoardStatus.DELETED)
+                                           .orElseThrow();
+        assertThat(board.isDeleted()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(memberId, commentId))
                 .isInstanceOf(BoardNotFoundException.class);
     }
     

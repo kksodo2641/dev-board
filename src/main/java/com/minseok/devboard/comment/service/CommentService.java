@@ -138,6 +138,8 @@ public class CommentService {
     
     /**
      * 댓글 수정
+     * <p>
+     * 댓글 작성자만 수정 가능
      *
      * @throws MemberNotFoundException  존재하지 않거나 탈퇴 회원인 경우
      * @throws CommentNotFoundException 존재하지 않거나 삭제된 댓글인 경우
@@ -154,9 +156,8 @@ public class CommentService {
         
         final Member member = findActiveMemberElseThrow(memberId);
         final Comment comment = findActiveCommentElseThrow(commentId);
-        final Board board = comment.getBoard();
         
-        if (board.isDeleted()) {
+        if (comment.getBoard().isDeleted()) {
             throw new BoardNotFoundException();
         }
         
@@ -165,6 +166,37 @@ public class CommentService {
         }
         
         comment.update(request.getContent());
+    }
+    
+    /**
+     * 댓글 삭제
+     * <p>
+     * 댓글 작성자 또는 관리자 삭제 가능
+     *
+     * @throws MemberNotFoundException  존재하지 않거나 탈퇴 회원인 경우
+     * @throws CommentNotFoundException 존재하지 않거나 이미 삭제된 댓글인 경우
+     * @throws BoardNotFoundException   삭제된 게시글에 속한 댓글인 경우
+     * @throws AccessDeniedException    삭제 권한이 없는 경우
+     */
+    @Transactional
+    public void deleteComment(final Long memberId,
+                              final Long commentId) {
+        assert (memberId != null);
+        assert (commentId != null);
+        
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Comment comment = findActiveCommentElseThrow(commentId);
+        
+        if (comment.getBoard().isDeleted()) {
+            throw new BoardNotFoundException();
+        }
+        
+        if (!member.isAdmin()
+                && !comment.isWrittenBy(member.getId())) {
+            throw new AccessDeniedException();
+        }
+        
+        comment.delete();
     }
     
     //==내부 메서드==//
