@@ -4,17 +4,21 @@ import com.minseok.devboard.board.entity.Board;
 import com.minseok.devboard.board.entity.BoardStatus;
 import com.minseok.devboard.board.exception.BoardNotFoundException;
 import com.minseok.devboard.board.repository.BoardRepository;
+import com.minseok.devboard.comment.dto.request.UpdateCommentRequest;
 import com.minseok.devboard.comment.dto.request.WriteCommentRequest;
 import com.minseok.devboard.comment.dto.response.CommentResponse;
 import com.minseok.devboard.comment.entity.Comment;
+import com.minseok.devboard.comment.entity.CommentStatus;
 import com.minseok.devboard.comment.exception.CommentNotFoundException;
 import com.minseok.devboard.comment.exception.ReplyNotAllowedException;
 import com.minseok.devboard.comment.repository.CommentRepository;
+import com.minseok.devboard.global.exception.AccessDeniedException;
 import com.minseok.devboard.member.entity.Member;
 import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.MemberNotFoundException;
 import com.minseok.devboard.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +26,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.minseok.devboard.comment.dto.response.CommentResponse.toResponse;
 
 @Service
 @Transactional(readOnly = true)
@@ -46,8 +52,8 @@ public class CommentService {
                              final WriteCommentRequest request) {
         assert (request != null);
         
-        final Member member = findActiveMember(memberId);
-        final Board board = findActiveBoard(boardId);
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Board board = findActiveBoardElseThrow(boardId);
         
         // 댓글 작성
         if (request.getParentId() == null) {
@@ -82,7 +88,8 @@ public class CommentService {
      *
      * @throws BoardNotFoundException 존재하지 않는 게시글인 경우
      */
-    public List<CommentResponse> getCommentList(final Long boardId) {
+    public List<CommentResponse> getCommentList(final @Nullable Long readerId,
+                                                final Long boardId) {
         assert (boardId != null);
         
         // 삭제 게시글도 포함해서 조회
@@ -106,17 +113,90 @@ public class CommentService {
             }
         }
         
+        // 회원 조회
+        final Member member = readerId == null
+                              ? null
+                              : memberRepository.findByIdAndStatus(readerId, MemberStatus.ACTIVE)
+                                                .orElse(null);
+        
         final List<CommentResponse> result = new ArrayList<>();
         
         for (final Comment parent : parentComments) {
-            result.add(CommentResponse.toResponse(parent));
+            result.add(toResponse(parent,
+                                  canEdit(member, board, parent),
+                                  canDelete(member, board, parent)));
             
-            result.addAll(replyMap.get(parent.getId()).stream()
-                                  .map(CommentResponse::toResponse)
-                                  .toList());
+            for (final Comment reply : replyMap.get(parent.getId())) {
+                result.add(toResponse(reply,
+                                      canEdit(member, board, reply),
+                                      canDelete(member, board, reply)));
+            }
         }
         
         return result;
+    }
+    
+    /**
+     * 댓글 수정
+     * <p>
+     * 댓글 작성자만 수정 가능
+     *
+     * @throws MemberNotFoundException  존재하지 않거나 탈퇴 회원인 경우
+     * @throws CommentNotFoundException 존재하지 않거나 삭제된 댓글인 경우
+     * @throws BoardNotFoundException   삭제된 게시글에 속한 댓글인 경우
+     * @throws AccessDeniedException    수정 권한이 없는 경우
+     */
+    @Transactional
+    public void updateComment(final Long memberId,
+                              final Long commentId,
+                              final UpdateCommentRequest request) {
+        assert (memberId != null);
+        assert (commentId != null);
+        assert (request != null);
+        
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Comment comment = findActiveCommentElseThrow(commentId);
+        
+        if (comment.getBoard().isDeleted()) {
+            throw new BoardNotFoundException();
+        }
+        
+        if (!comment.isWrittenBy(member.getId())) {
+            throw new AccessDeniedException();
+        }
+        
+        comment.update(request.getContent());
+    }
+    
+    /**
+     * 댓글 삭제
+     * <p>
+     * 댓글 작성자 또는 관리자 삭제 가능
+     *
+     * @throws MemberNotFoundException  존재하지 않거나 탈퇴 회원인 경우
+     * @throws CommentNotFoundException 존재하지 않거나 이미 삭제된 댓글인 경우
+     * @throws BoardNotFoundException   삭제된 게시글에 속한 댓글인 경우
+     * @throws AccessDeniedException    삭제 권한이 없는 경우
+     */
+    @Transactional
+    public void deleteComment(final Long memberId,
+                              final Long commentId) {
+        assert (memberId != null);
+        assert (commentId != null);
+        
+        final Member member = findActiveMemberElseThrow(memberId);
+        final Comment comment = findActiveCommentElseThrow(commentId);
+        
+        if (comment.getBoard().isDeleted()) {
+            throw new BoardNotFoundException();
+        }
+        
+        if (!member.isAdmin()
+                && !comment.isWrittenBy(member.getId())) {
+            throw new AccessDeniedException();
+        }
+        
+        comment.delete();
     }
     
     //==내부 메서드==//
@@ -126,7 +206,8 @@ public class CommentService {
      *
      * @throws MemberNotFoundException 존재하지 않거나 탈퇴 회원인 경우
      */
-    private Member findActiveMember(final Long memberId) {
+    private Member findActiveMemberElseThrow(final Long memberId) {
+        assert (memberId != null);
         return memberRepository.findByIdAndStatus(memberId, MemberStatus.ACTIVE)
                                .orElseThrow(MemberNotFoundException::new);
     }
@@ -136,9 +217,21 @@ public class CommentService {
      *
      * @throws BoardNotFoundException 존재하지 않거나 삭제된 게시글인 경우
      */
-    private Board findActiveBoard(final Long boardId) {
+    private Board findActiveBoardElseThrow(final Long boardId) {
+        assert (boardId != null);
         return boardRepository.findByIdAndStatus(boardId, BoardStatus.ACTIVE)
                               .orElseThrow(BoardNotFoundException::new);
+    }
+    
+    /**
+     * 활성 댓글 조회
+     *
+     * @throws CommentNotFoundException 존재하지 않거나 삭제된 댓글인 경우
+     */
+    private Comment findActiveCommentElseThrow(final Long commentId) {
+        assert (commentId != null);
+        return commentRepository.findByIdAndStatus(commentId, CommentStatus.ACTIVE)
+                                .orElseThrow(CommentNotFoundException::new);
     }
     
     /**
@@ -150,5 +243,36 @@ public class CommentService {
         assert (parentId != null);
         return commentRepository.findById(parentId)
                                 .orElseThrow(CommentNotFoundException::new);
+    }
+    
+    private boolean canEdit(final @Nullable Member member,
+                            final Board board,
+                            final Comment comment) {
+        assert (board != null);
+        assert (comment != null);
+        
+        if (member == null
+                || board.isDeleted()
+                || comment.isDeleted()) {
+            return false;
+        }
+        
+        return comment.isWrittenBy(member.getId());
+    }
+    
+    private boolean canDelete(final @Nullable Member member,
+                              final Board board,
+                              final Comment comment) {
+        assert (board != null);
+        assert (comment != null);
+        
+        if (member == null
+                || board.isDeleted()
+                || comment.isDeleted()) {
+            return false;
+        }
+        
+        return member.isAdmin()
+                || comment.isWrittenBy(member.getId());
     }
 }

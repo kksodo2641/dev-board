@@ -778,12 +778,6 @@ class BoardServiceTest extends IntegrationTest {
                                                       Gender.NONE));
     }
     
-    private Long getAdminMemberId() {
-        return memberRepository.findByEmail(ADMIN_EMAIL)
-                               .orElseThrow()
-                               .getId();
-    }
-    
     private Long createBoard(final Long memberId,
                              final String title,
                              final String content,

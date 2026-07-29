@@ -25,7 +25,17 @@ public class CommentResponse {
     @Accessors(fluent = true)
     private final boolean hasParent;
     
-    public static CommentResponse toResponse(final Comment comment) {
+    @JsonProperty("canEdit")
+    @Accessors(fluent = true)
+    private final boolean canEdit;
+    
+    @JsonProperty("canDelete")
+    @Accessors(fluent = true)
+    private final boolean canDelete;
+    
+    public static CommentResponse toResponse(final Comment comment,
+                                             final boolean canEdit,
+                                             final boolean canDelete) {
         assert (comment != null);
         
         final String displayContent = comment.isDeleted()
@@ -37,6 +47,8 @@ public class CommentResponse {
                                    displayContent,
                                    comment.getCreatedAt(),
                                    comment.isDeleted(),
-                                   comment.hasParent());
+                                   comment.hasParent(),
+                                   canEdit,
+                                   canDelete);
     }
 }

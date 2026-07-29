@@ -3,18 +3,23 @@ package com.minseok.devboard.comment.service;
 import com.minseok.devboard.IntegrationTest;
 import com.minseok.devboard.board.dto.request.WriteBoardRequest;
 import com.minseok.devboard.board.entity.Board;
+import com.minseok.devboard.board.entity.BoardStatus;
 import com.minseok.devboard.board.exception.BoardNotFoundException;
 import com.minseok.devboard.board.repository.BoardRepository;
 import com.minseok.devboard.board.service.BoardService;
+import com.minseok.devboard.comment.dto.request.UpdateCommentRequest;
 import com.minseok.devboard.comment.dto.request.WriteCommentRequest;
 import com.minseok.devboard.comment.dto.response.CommentResponse;
 import com.minseok.devboard.comment.entity.Comment;
+import com.minseok.devboard.comment.entity.CommentStatus;
 import com.minseok.devboard.comment.exception.CommentNotFoundException;
 import com.minseok.devboard.comment.exception.ReplyNotAllowedException;
 import com.minseok.devboard.comment.repository.CommentRepository;
+import com.minseok.devboard.global.exception.AccessDeniedException;
 import com.minseok.devboard.member.dto.request.SignupRequest;
 import com.minseok.devboard.member.entity.Gender;
 import com.minseok.devboard.member.entity.Member;
+import com.minseok.devboard.member.entity.MemberStatus;
 import com.minseok.devboard.member.exception.MemberNotFoundException;
 import com.minseok.devboard.member.repository.MemberRepository;
 import com.minseok.devboard.member.service.MemberService;
@@ -58,8 +63,7 @@ class CommentServiceTest extends IntegrationTest {
                                                                                    null));
         
         // then
-        final Comment comment = commentRepository.findById(commentId)
-                                                 .orElseThrow();
+        final Comment comment = findCommentElseThrow(commentId);
         
         assertThat(comment.getContent()).isEqualTo("comment");
         assertThat(comment.getParent()).isNull();
@@ -77,8 +81,7 @@ class CommentServiceTest extends IntegrationTest {
                                                            new WriteCommentRequest("comment",
                                                                                    null));
         
-        final Comment comment = commentRepository.findById(commentId)
-                                                 .orElseThrow();
+        final Comment comment = findCommentElseThrow(commentId);
         assertThat(comment.canReply()).isTrue();
         
         // when
@@ -88,8 +91,7 @@ class CommentServiceTest extends IntegrationTest {
                                                                                  commentId));
         
         // then
-        final Comment reply = commentRepository.findById(replyId)
-                                               .orElseThrow();
+        final Comment reply = findCommentElseThrow(replyId);
         
         assertThat(reply.getContent()).isEqualTo("reply");
         assertThat(reply.getParent()).isEqualTo(comment);
@@ -220,14 +222,11 @@ class CommentServiceTest extends IntegrationTest {
                                                          new WriteCommentRequest("reply1",
                                                                                  commentId));
         
-        final Comment reply = commentRepository.findById(replyId)
-                                               .orElseThrow();
-        
         // when
-        assertThatThrownBy(() -> commentService.writeComment(memberId,
-                                                             boardId,
-                                                             new WriteCommentRequest("reply2",
-                                                                                     replyId)))
+        assertThatThrownBy(
+                () -> commentService.writeComment(memberId,
+                                                  boardId,
+                                                  new WriteCommentRequest("reply2", replyId)))
                 .isInstanceOf(ReplyNotAllowedException.class);
     }
     
@@ -242,8 +241,7 @@ class CommentServiceTest extends IntegrationTest {
                                                            boardId,
                                                            new WriteCommentRequest("comment",
                                                                                    null));
-        final Comment comment = commentRepository.findById(commentId)
-                                                 .orElseThrow();
+        final Comment comment = findCommentElseThrow(commentId);
         comment.delete();
         assertThat(comment.isDeleted()).isTrue();
         
@@ -254,8 +252,7 @@ class CommentServiceTest extends IntegrationTest {
                                                                                  commentId));
         
         // then
-        final Comment reply = commentRepository.findById(replyId)
-                                               .orElseThrow();
+        final Comment reply = findCommentElseThrow(replyId);
         
         assertThat(reply.getContent()).isEqualTo("replyToDeletedComment");
         assertThat(reply.getParent()).isEqualTo(comment);
@@ -271,7 +268,7 @@ class CommentServiceTest extends IntegrationTest {
         final Long boardId = createBoard(memberId);
         
         // when
-        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        final List<CommentResponse> commentList = commentService.getCommentList(null, boardId);
         
         // then
         assertThat(commentList).isEmpty();
@@ -295,7 +292,7 @@ class CommentServiceTest extends IntegrationTest {
         final Long commentId6 = createComment(memberId3, boardId, "c6");
         
         // when
-        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        final List<CommentResponse> commentList = commentService.getCommentList(null, boardId);
         
         // then
         assertThat(commentList)
@@ -335,7 +332,7 @@ class CommentServiceTest extends IntegrationTest {
         final Long r6 = createReply(m1, boardId, c1, "A-3");
         
         // when
-        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        final List<CommentResponse> commentList = commentService.getCommentList(null, boardId);
         
         // then
         assertThat(commentList)
@@ -384,7 +381,7 @@ class CommentServiceTest extends IntegrationTest {
         deleteComment(r1, r3, r5);
         
         // when
-        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        final List<CommentResponse> commentList = commentService.getCommentList(null, boardId);
         
         // then
         assertThat(commentList)
@@ -439,7 +436,7 @@ class CommentServiceTest extends IntegrationTest {
         assertThat(board.isDeleted()).isTrue();
         
         // when
-        final List<CommentResponse> commentList = commentService.getCommentList(boardId);
+        final List<CommentResponse> commentList = commentService.getCommentList(null, boardId);
         
         // then
         assertThat(commentList)
@@ -465,11 +462,717 @@ class CommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("존재하지 않는 게시글은 댓글을 조회할 수 없다.")
     void getCommentListFromNotFoundBoard() {
-        // given
-        // when, then
+        // given, when, then
         final Long invalidBoardId = Long.MAX_VALUE;
         
-        assertThatThrownBy(() -> commentService.getCommentList(invalidBoardId))
+        assertThatThrownBy(() -> commentService.getCommentList(null, invalidBoardId))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    //==댓글 수정/삭제 권한==//
+    
+    @Test
+    @DisplayName("비회원은 댓글 수정/삭제 권한이 없다.")
+    void getCommentListPermissionsForGuest() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        
+        final Long commentId = createComment(memberId, boardId, "comment");
+        final Long replyId = createReply(memberId, boardId, commentId, "reply");
+        
+        // when
+        final List<CommentResponse> guestCommentList = commentService.getCommentList(null,
+                                                                                     boardId);
+        
+        // then
+        assertThat(guestCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, false, false),
+                        tuple(replyId, false, false));
+    }
+    
+    @Test
+    @DisplayName("댓글 작성자는 본인 댓글의 수정/삭제 권한이 있다.")
+    void getCommentListPermissionsForWriter() {
+        // given
+        final Long boardWriterId = createMember("boardWriter@example.com", "boardWriter");
+        final Long commentWriterId = createMember("commentWriter@example.com", "commentWriter");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long commentId = createComment(commentWriterId, boardId, "comment");
+        final Long replyId = createReply(commentWriterId, boardId, commentId, "reply");
+        
+        // when
+        final List<CommentResponse> writerCommentList = commentService.getCommentList(commentWriterId,
+                                                                                      boardId);
+        
+        // then
+        assertThat(writerCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, true, true),
+                        tuple(replyId, true, true));
+    }
+    
+    @Test
+    @DisplayName("댓글 작성자가 아닌 일반 회원은 댓글 수정/삭제 권한이 없다.")
+    void getCommentListPermissionsForNotWriterMember() {
+        // given
+        final Long boardWriterId = createMember("boardWriter@example.com", "boardWriter");
+        final Long commentWriterId = createMember("commentWriter@example.com", "commentWriter");
+        final Long notWriterId = createMember("notWriter@example.com", "notWriter");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long commentId = createComment(commentWriterId, boardId, "comment");
+        final Long replyId = createReply(commentWriterId, boardId, commentId, "reply");
+        
+        // when
+        final List<CommentResponse> notWriterCommentList = commentService.getCommentList(notWriterId,
+                                                                                         boardId);
+        
+        final List<CommentResponse> boardWriterCommentList = commentService.getCommentList(boardWriterId,
+                                                                                           boardId);
+        
+        // then
+        assertThat(notWriterCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, false, false),
+                        tuple(replyId, false, false));
+        
+        assertThat(boardWriterCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, false, false),
+                        tuple(replyId, false, false));
+    }
+    
+    @Test
+    @DisplayName("관리자는 본인 댓글의 수정/삭제 권한이 있고, 다른 회원이 작성한 댓글은 삭제 권한만 있다.")
+    void getCommentListPermissionsForAdminMember() {
+        // given
+        final Long adminId = getAdminMemberId();
+        final Long memberId = createMember("normalMember@example.com", "normalMember");
+        
+        final Long boardId = createBoard(adminId);
+        
+        final Long adminCommentId = createComment(adminId, boardId, "adminComment");
+        final Long memberCommentId = createComment(memberId, boardId, "memberComment");
+        
+        final Long adminReplyId = createReply(adminId, boardId, memberCommentId, "adminReply");
+        final Long memberReplyId = createReply(memberId, boardId, adminCommentId, "memberReply");
+        
+        // when
+        final List<CommentResponse> adminCommentList = commentService.getCommentList(adminId,
+                                                                                     boardId);
+        
+        // then
+        assertThat(adminCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(adminCommentId, true, true),
+                        tuple(memberReplyId, false, true),
+                        tuple(memberCommentId, false, true),
+                        tuple(adminReplyId, true, true));
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 회원은 댓글 수정/삭제 권한이 없다.")
+    void getCommentListPermissionsForNotFoundMember() {
+        // given
+        final Long boardWriterId = createMember("boardWriter@test.com", "boardWriter");
+        final Long commentWriterId = createMember("commentWriter@test.com", "commentWriter");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long commentId = createComment(commentWriterId, boardId, "comment");
+        final Long replyId = createReply(commentWriterId, boardId, commentId, "reply");
+        
+        // when
+        final List<CommentResponse> notFoundMemberCommentList = commentService.getCommentList(Long.MAX_VALUE,
+                                                                                              boardId);
+        
+        // then
+        assertThat(notFoundMemberCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, false, false),
+                        tuple(replyId, false, false));
+    }
+    
+    @Test
+    @DisplayName("탈퇴 회원은 댓글 수정/삭제 권한이 없다.")
+    void getCommentListPermissionsForWithdrawnMember() {
+        // given
+        final Long boardWriterId = createMember("boardWriter@test.com", "boardWriter");
+        final Long commentWriterId = createMember("commentWriter@test.com", "commentWriter");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long commentId = createComment(commentWriterId, boardId, "comment");
+        final Long replyId = createReply(commentWriterId, boardId, commentId, "reply");
+        
+        // 회원 탈퇴
+        memberService.withdraw(commentWriterId);
+        final Member member = memberRepository.findByIdAndStatus(commentWriterId, MemberStatus.DELETED)
+                                              .orElseThrow();
+        assertThat(member.isWithdrawn()).isTrue();
+        
+        // when
+        final List<CommentResponse> writerCommentList = commentService.getCommentList(commentWriterId,
+                                                                                      boardId);
+        
+        // then
+        assertThat(writerCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, false, false),
+                        tuple(replyId, false, false));
+    }
+    
+    @Test
+    @DisplayName("삭제된 댓글에는 수정/삭제 권한이 없다.")
+    void getCommentListPermissionsWhenCommentIsDeleted() {
+        // given
+        final Long adminId = getAdminMemberId();
+        final Long boardWriterId = createMember("boardWriter@test.com", "boardWriter");
+        final Long commentWriterId = createMember("commentWriter@test.com", "commentWriter");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long commentId = createComment(commentWriterId, boardId, "comment");
+        final Long replyId = createReply(commentWriterId, boardId, commentId, "reply");
+        
+        // 댓글/대댓글 삭제
+        deleteComment(commentId);
+        deleteComment(replyId);
+        
+        final Comment comment = commentRepository.findByIdAndStatus(commentId, CommentStatus.DELETED)
+                                                 .orElseThrow();
+        final Comment reply = commentRepository.findByIdAndStatus(replyId, CommentStatus.DELETED)
+                                               .orElseThrow();
+        assertThat(comment.isDeleted()).isTrue();
+        assertThat(reply.isDeleted()).isTrue();
+        
+        // when
+        final List<CommentResponse> writerCommentList = commentService.getCommentList(commentWriterId,
+                                                                                      boardId);
+        
+        final List<CommentResponse> adminCommentList = commentService.getCommentList(adminId,
+                                                                                     boardId);
+        
+        // then
+        assertThat(writerCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::isDeleted,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete
+                )
+                .containsExactly(
+                        tuple(commentId, true, false, false),
+                        tuple(replyId, true, false, false));
+        
+        assertThat(adminCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::isDeleted,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, true, false, false),
+                        tuple(replyId, true, false, false));
+    }
+    
+    @Test
+    @DisplayName("삭제된 부모 댓글의 활성 대댓글에는 수정/삭제 권한이 있다.")
+    void getCommentListPermissionsWhenParentCommentIsDeleted() {
+        // given
+        final Long boardWriterId = createMember("boardWriter@test.com", "boardWriter");
+        final Long commentWriterId = createMember("commentWriter@test.com", "commentWriter");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long commentId = createComment(commentWriterId, boardId, "comment");
+        final Long replyId = createReply(commentWriterId, boardId, commentId, "reply");
+        
+        // 댓글 삭제
+        deleteComment(commentId);
+        final Comment comment = commentRepository.findByIdAndStatus(commentId, CommentStatus.DELETED)
+                                                 .orElseThrow();
+        assertThat(comment.isDeleted()).isTrue();
+        
+        // when
+        final List<CommentResponse> writerCommentList = commentService.getCommentList(commentWriterId,
+                                                                                      boardId);
+        
+        // then
+        assertThat(writerCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::isDeleted,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, true, false, false),
+                        tuple(replyId, false, true, true));
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글의 댓글에는 수정/삭제 권한이 없다.")
+    void getCommentListPermissionsWhenBoardIsDeleted() {
+        // given
+        final Long adminId = getAdminMemberId();
+        final Long boardWriterId = createMember("boardWriter@test.com", "boardWriter");
+        final Long commentWriterId = createMember("commentWriter@test.com", "commentWriter");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long commentId = createComment(commentWriterId, boardId, "comment");
+        final Long replyId = createReply(commentWriterId, boardId, commentId, "reply");
+        
+        // 게시글 삭제
+        boardService.deleteBoard(boardWriterId, boardId);
+        final Board board = boardRepository.findByIdAndStatus(boardId, BoardStatus.DELETED)
+                                           .orElseThrow();
+        assertThat(board.isDeleted()).isTrue();
+        
+        // when
+        final List<CommentResponse> writerCommentList = commentService.getCommentList(commentWriterId,
+                                                                                      boardId);
+        
+        final List<CommentResponse> adminCommentList = commentService.getCommentList(adminId,
+                                                                                     boardId);
+        
+        // then
+        assertThat(writerCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::isDeleted,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, false, false, false),
+                        tuple(replyId, false, false, false));
+        
+        assertThat(adminCommentList)
+                .extracting(CommentResponse::getCommentId,
+                            CommentResponse::isDeleted,
+                            CommentResponse::canEdit,
+                            CommentResponse::canDelete)
+                .containsExactly(
+                        tuple(commentId, false, false, false),
+                        tuple(replyId, false, false, false));
+    }
+    
+    //==댓글 수정==//
+    
+    @Test
+    @DisplayName("작성자는 댓글을 수정할 수 있다.")
+    void updateCommentByWriter() {
+        // given
+        final Long memberId = createMember("test@example.com", "nickname");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "content");
+        
+        // when
+        final String newContent = "new_content";
+        commentService.updateComment(memberId,
+                                     commentId,
+                                     new UpdateCommentRequest(newContent));
+        
+        // then
+        final Comment comment = findCommentElseThrow(commentId);
+        
+        assertThat(comment.getContent()).isEqualTo(newContent);
+        assertThat(comment.isDeleted()).isFalse();
+    }
+    
+    @Test
+    @DisplayName("관리자는 본인 댓글을 수정할 수 있다.")
+    void updateOwnCommentByAdminMember() {
+        // given
+        final Long adminId = getAdminMemberId();
+        final Long boardId = createBoard(adminId);
+        final Long commentId = createComment(adminId, boardId, "content");
+        
+        // when
+        final String newContent = "new_content";
+        commentService.updateComment(adminId,
+                                     commentId,
+                                     new UpdateCommentRequest(newContent));
+        
+        // then
+        final Comment comment = findCommentElseThrow(commentId);
+        
+        assertThat(comment.getContent()).isEqualTo(newContent);
+    }
+    
+    @Test
+    @DisplayName("작성자는 대댓글을 수정할 수 있다.")
+    void updateReplyByWriter() {
+        // given
+        final Long memberId = createMember("test@example.com", "nickname");
+        final Long boardId = createBoard(memberId);
+        final Long parentId = createComment(memberId, boardId, "parent");
+        final Long replyId = createReply(memberId, boardId, parentId, "reply");
+        
+        // when
+        final String newContent = "new_reply";
+        commentService.updateComment(memberId,
+                                     replyId,
+                                     new UpdateCommentRequest(newContent));
+        
+        // then
+        final Comment reply = findCommentElseThrow(replyId);
+        
+        assertThat(reply.getContent()).isEqualTo(newContent);
+    }
+    
+    @Test
+    @DisplayName("작성자가 아닌 회원은 댓글을 수정할 수 없다.")
+    void updateCommentByNotWriter() {
+        // given
+        final Long writerId = createMember("writer@example.com", "writer");
+        final Long notWriterId = createMember("notWriter@example.com", "notWriter");
+        final Long boardId = createBoard(writerId);
+        final Long commentId = createComment(writerId, boardId, "content");
+        
+        // when, then
+        assertThatThrownBy(
+                () -> commentService.updateComment(notWriterId,
+                                                   commentId,
+                                                   new UpdateCommentRequest("new_content")))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+    
+    @Test
+    @DisplayName("관리자도 다른 회원의 댓글은 수정할 수 없다.")
+    void updateOtherMemberCommentByAdminMember() {
+        // given
+        final Long writerId = createMember("writer@example.com", "writer");
+        final Long adminId = getAdminMemberId();
+        
+        final Long boardId = createBoard(adminId);
+        final Long commentId = createComment(writerId, boardId, "content");
+        
+        // when, then
+        assertThatThrownBy(
+                () -> commentService.updateComment(adminId,
+                                                   commentId,
+                                                   new UpdateCommentRequest("new_content")))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 회원은 댓글을 수정할 수 없다.")
+    void updateCommentByNotFoundMember() {
+        // given
+        final Long memberId = createMember("test@example.com", "nickname");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "content");
+        
+        // when, then
+        final Long invalidMemberId = Long.MAX_VALUE;
+        assertThatThrownBy(
+                () -> commentService.updateComment(invalidMemberId,
+                                                   commentId,
+                                                   new UpdateCommentRequest("new_content")))
+                .isInstanceOf(MemberNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("탈퇴 회원은 댓글을 수정할 수 없다.")
+    void updateCommentByWithdrawnMember() {
+        // given
+        final Long writerId = createMember("test@example.com", "writer");
+        final Long boardId = createBoard(writerId);
+        final Long commentId = createComment(writerId, boardId, "content");
+        
+        memberService.withdraw(writerId);
+        final Member withdrawnMember = memberRepository.findByIdAndStatus(writerId,
+                                                                          MemberStatus.DELETED)
+                                                       .orElseThrow();
+        assertThat(withdrawnMember.isWithdrawn()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(
+                () -> commentService.updateComment(writerId,
+                                                   commentId,
+                                                   new UpdateCommentRequest("new_content")))
+                .isInstanceOf(MemberNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 댓글은 수정할 수 없다.")
+    void updateCommentWithNotFoundComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "nickname");
+        
+        // when, then
+        final Long invalidCommentId = Long.MAX_VALUE;
+        assertThatThrownBy(
+                () -> commentService.updateComment(memberId,
+                                                   invalidCommentId,
+                                                   new UpdateCommentRequest("new_content")))
+                .isInstanceOf(CommentNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("삭제된 댓글은 수정할 수 없다.")
+    void updateCommentWithDeletedComment() {
+        // given
+        final Long writerId = createMember("test@example.com", "writer");
+        final Long boardId = createBoard(writerId);
+        final Long commentId = createComment(writerId, boardId, "content");
+        
+        deleteComment(commentId);
+        
+        final Comment comment = findCommentElseThrow(commentId);
+        assertThat(comment.isDeleted()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(
+                () -> commentService.updateComment(writerId,
+                                                   commentId,
+                                                   new UpdateCommentRequest("new_content")))
+                .isInstanceOf(CommentNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("삭제된 댓글의 대댓글은 수정할 수 있다.")
+    void updateReplyWithDeletedParentComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "nickname");
+        final Long boardId = createBoard(memberId);
+        
+        final Long parentId = createComment(memberId, boardId, "parent");
+        final Long replyId = createReply(memberId, boardId, parentId, "reply");
+        
+        deleteComment(parentId);
+        
+        final Comment parent = findCommentElseThrow(parentId);
+        assertThat(parent.isDeleted()).isTrue();
+        
+        // when
+        final String newReply = "new_reply";
+        commentService.updateComment(memberId,
+                                     replyId,
+                                     new UpdateCommentRequest(newReply));
+        
+        // then
+        final Comment reply = findCommentElseThrow(replyId);
+        
+        assertThat(reply.getContent()).isEqualTo(newReply);
+        assertThat(reply.getParent()).isEqualTo(parent);
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글의 댓글은 수정할 수 없다.")
+    void updateCommentInDeletedBoard() {
+        // given
+        final Long memberId = createMember("test@example.com", "nickname");
+        final Long boardId = createBoard(memberId);
+        
+        final Long parentId = createComment(memberId, boardId, "parent");
+        final Long replyId = createReply(memberId, boardId, parentId, "reply");
+        
+        boardService.deleteBoard(memberId, boardId);
+        
+        // when, then
+        assertThatThrownBy(
+                () -> commentService.updateComment(memberId,
+                                                   parentId,
+                                                   new UpdateCommentRequest("new_parent")))
+                .isInstanceOf(BoardNotFoundException.class);
+        
+        assertThatThrownBy(
+                () -> commentService.updateComment(memberId,
+                                                   replyId,
+                                                   new UpdateCommentRequest("new_reply")))
+                .isInstanceOf(BoardNotFoundException.class);
+    }
+    
+    //==댓글 삭제==//
+    
+    @Test
+    @DisplayName("댓글 작성자는 자신의 댓글을 삭제할 수 있다.")
+    void deleteCommentByWriter() {
+        // given
+        final Long adminId = getAdminMemberId();
+        final Long boardWriterId = createMember("boardWriter@test.com", "boardWriter");
+        final Long memberId = createMember("member@test.com", "member");
+        
+        final Long boardId = createBoard(boardWriterId);
+        
+        final Long memberCommentId = createComment(memberId, boardId, "memberComment");
+        final Long adminCommentId = createComment(adminId, boardId, "adminComment");
+        
+        final Long memberReplyId = createReply(memberId, boardId, adminCommentId, "memberReply");
+        final Long adminReplyId = createReply(adminId, boardId, memberCommentId, "adminReply");
+        
+        // when
+        commentService.deleteComment(memberId, memberCommentId);
+        commentService.deleteComment(memberId, memberReplyId);
+        commentService.deleteComment(adminId, adminCommentId);
+        commentService.deleteComment(adminId, adminReplyId);
+        
+        // then
+        final Comment memberComment = findCommentElseThrow(memberCommentId);
+        final Comment memberReply = findCommentElseThrow(memberReplyId);
+        final Comment adminComment = findCommentElseThrow(adminCommentId);
+        final Comment adminReply = findCommentElseThrow(adminReplyId);
+        
+        assertThat(memberComment.isDeleted()).isTrue();
+        assertThat(memberReply.isDeleted()).isTrue();
+        assertThat(adminComment.isDeleted()).isTrue();
+        assertThat(adminReply.isDeleted()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("관리자는 다른 회원의 댓글을 삭제할 수 있다.")
+    void deleteCommentByAdminMember() {
+        // given
+        final Long adminId = getAdminMemberId();
+        final Long memberId = createMember("member@test.com", "member");
+        
+        final Long boardId = createBoard(memberId);
+        
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        // when
+        commentService.deleteComment(adminId, commentId);
+        
+        // then
+        final Comment comment = findCommentElseThrow(commentId);
+        assertThat(comment.isDeleted()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("일반 회원은 다른 회원의 댓글을 삭제할 수 없다.")
+    void deleteCommentByNotWriter() {
+        // given
+        final Long writerId = createMember("writer@test.com", "writer");
+        final Long notWriterId = createMember("notWriter@test.com", "notWriter");
+        
+        final Long boardId = createBoard(notWriterId);
+        
+        final Long commentId = createComment(writerId, boardId, "comment");
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(notWriterId, commentId))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 회원은 댓글을 삭제할 수 없다.")
+    void deleteCommentByNotFoundMember() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(Long.MAX_VALUE, commentId))
+                .isInstanceOf(MemberNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("탈퇴 회원은 댓글을 삭제할 수 없다.")
+    void deleteCommentByWithdrawnMember() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        memberService.withdraw(memberId);
+        final Member member = memberRepository.findByIdAndStatus(memberId, MemberStatus.DELETED)
+                                              .orElseThrow();
+        assertThat(member.isWithdrawn()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(memberId, commentId))
+                .isInstanceOf(MemberNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 댓글은 삭제할 수 없다.")
+    void deleteNotFoundComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(memberId, Long.MAX_VALUE))
+                .isInstanceOf(CommentNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("이미 삭제된 댓글은 다시 삭제할 수 없다.")
+    void deleteCommentWithDeletedComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        commentService.deleteComment(memberId, commentId);
+        final Comment comment = findCommentElseThrow(commentId);
+        assertThat(comment.isDeleted()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(memberId, commentId))
+                .isInstanceOf(CommentNotFoundException.class);
+    }
+    
+    @Test
+    @DisplayName("삭제된 부모 댓글의 대댓글은 삭제할 수 있다.")
+    void deleteReplyWithDeletedParentComment() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long parentId = createComment(memberId, boardId, "parent");
+        final Long replyId = createReply(memberId, boardId, parentId, "reply");
+        
+        commentService.deleteComment(memberId, parentId);
+        final Comment parent = findCommentElseThrow(parentId);
+        assertThat(parent.isDeleted()).isTrue();
+        
+        // when
+        commentService.deleteComment(memberId, replyId);
+        
+        // then
+        final Comment reply = findCommentElseThrow(replyId);
+        assertThat(reply.isDeleted()).isTrue();
+    }
+    
+    @Test
+    @DisplayName("삭제된 게시글의 댓글은 삭제할 수 없다.")
+    void deleteCommentInDeletedBoard() {
+        // given
+        final Long memberId = createMember("test@example.com", "tester");
+        final Long boardId = createBoard(memberId);
+        final Long commentId = createComment(memberId, boardId, "comment");
+        
+        boardService.deleteBoard(memberId, boardId);
+        final Board board = boardRepository.findByIdAndStatus(boardId, BoardStatus.DELETED)
+                                           .orElseThrow();
+        assertThat(board.isDeleted()).isTrue();
+        
+        // when, then
+        assertThatThrownBy(() -> commentService.deleteComment(memberId, commentId))
                 .isInstanceOf(BoardNotFoundException.class);
     }
     
@@ -506,9 +1209,13 @@ class CommentServiceTest extends IntegrationTest {
     
     private void deleteComment(final Long... commentIds) {
         for (final Long id : commentIds) {
-            final Comment comment = commentRepository.findById(id)
-                                                     .orElseThrow();
+            final Comment comment = findCommentElseThrow(id);
             comment.delete();
         }
+    }
+    
+    private Comment findCommentElseThrow(final Long commentId) {
+        return commentRepository.findById(commentId)
+                                .orElseThrow();
     }
 }
