@@ -81,8 +81,8 @@ create table board_like
         foreign key (board_id)
             references board (board_id),
 
-    constraint uk_board_like_board_member
-        unique (board_id, member_id)
+    constraint uk_board_like_member_board
+        unique (member_id, board_id)
 );
 
 -- ----------------------------------------------------

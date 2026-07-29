@@ -2,39 +2,37 @@
 
 ## 개요
 
-본 문서는 Dev Board 프로젝트의 데이터베이스 관점의 설계 문서이다.
+본 문서는 Dev Board 프로젝트의 데이터베이스 구조를 정의한다.  
+각 테이블의 컬럼 및 제약조건, 테이블 간 관계, 삭제 및 참조 정책, ERD를 다룬다.
 
-각 테이블의 컬럼 및 제약조건을 정의하며, 테이블 간 관계를 명시한다.
-
-도메인 규칙 및 비즈니스 정책은 [Domain Design](./domain-design.md) 문서를 따르며,
-
-주요 아키텍처 설계 의사결정은 [Architecture Decisions](./architecture-decisions.md) 문서를 따른다.
+데이터베이스 구조와 직접 관련된 규칙은 본 문서에 함께 명시하며,
+실제 데이터베이스 스키마를 정의하는 DDL은 [schema.sql](../sql/schema.sql)에서 관리한다.  
+전체 도메인 규칙 및 비즈니스 정책은 [Domain Design](./domain-design.md)에서 다루며,
+주요 설계 의사결정의 배경과 근거는 [Architecture Decisions](./architecture-decisions.md)에 기록한다.
 
 ---
 
-## 핵심 엔티티
+## 테이블 설계
 
 ### 1. MEMBER
 
 #### 설명
 
-**회원** 정보를 저장하는 테이블
-
-Soft Delete 정책을 적용하며, 탈퇴 회원 정보는 물리 삭제하지 않는다.
+- `회원` 정보를 저장하는 테이블
 
 #### 컬럼 및 제약조건
 
-| 컬럼명           | 타입           | 제약조건                                                                             | 설명               |
-|---------------|--------------|----------------------------------------------------------------------------------|------------------|
-| member_id     | BIGINT       | PK (auto_increment)                                                              | 회원 ID            |
-| email         | VARCHAR(255) | NOT NULL, UNIQUE                                                                 | 이메일, 로그인 ID로 사용  |
-| password_hash | VARCHAR(255) | NOT NULL                                                                         | 비밀번호, BCrypt 해시값 |
-| nickname      | VARCHAR(30)  | NOT NULL, UNIQUE CHECK (char_length(nickname) between 2 and 30)                  | 닉네임              |
-| gender        | VARCHAR(10)  | NOT NULL, <br/> CHECK(gender IN ('MALE', 'FEMALE', 'NONE')),<br/> DEFAULT 'NONE' | 성별               |
-| role          | VARCHAR(10)  | NOT NULL, <br/> CHECK(role IN ('USER', 'ADMIN')),<br/> DEFAULT 'USER'            | 권한               |
-| status        | VARCHAR(20)  | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE'    | 상태               |
-| created_at    | DATETIME     | NOT NULL                                                                         | 생성 일시            |
-| updated_at    | DATETIME     | NOT NULL                                                                         | 수정 일시            |
+|      컬럼명      |    데이터 타입    | NULL 허용 |                              제약조건                               |    설명    |
+|:-------------:|:------------:|:-------:|:---------------------------------------------------------------:|:--------:|
+|   member_id   |    BIGINT    |   불가    |                       PK (AUTO_INCREMENT)                       |  회원 식별자  |
+|     email     | VARCHAR(255) |   불가    |                             UNIQUE                              |   이메일    |
+| password_hash | VARCHAR(255) |   불가    |                                -                                | 비밀번호 해시값 |
+|   nickname    | VARCHAR(30)  |   불가    |    UNIQUE,<br/>CHECK(char_length(nickname) BETWEEN 2 AND 30)    |   닉네임    |
+|    gender     | VARCHAR(10)  |   불가    | DEFAULT 'NONE',<br/>CHECK(gender IN ('MALE', 'FEMALE', 'NONE')) |    성별    |
+|     role      | VARCHAR(10)  |   불가    |      DEFAULT 'USER',<br/>CHECK(role IN ('USER', 'ADMIN'))       |  회원 역할   |
+|    status     | VARCHAR(20)  |   불가    |  DEFAULT 'ACTIVE',<br/>CHECK(status IN ('ACTIVE', 'DELETED'))   |  회원 상태   |
+|  created_at   |   DATETIME   |   불가    |                                -                                |   생성일시   |
+|  updated_at   |   DATETIME   |   불가    |                                -                                |   수정일시   |
 
 ---
 
@@ -42,23 +40,21 @@ Soft Delete 정책을 적용하며, 탈퇴 회원 정보는 물리 삭제하지 
 
 #### 설명
 
-**게시글** 정보를 저장하는 테이블
-
-Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지된다.
+- `게시글` 정보를 저장하는 테이블
 
 #### 컬럼 및 제약조건
 
-| 컬럼명        | 타입           | 제약조건                                                                          | 설명        |
-|------------|--------------|-------------------------------------------------------------------------------|-----------|
-| board_id   | BIGINT       | PK (auto_increment)                                                           | 게시글 ID    |
-| member_id  | BIGINT       | FK, NOT NULL                                                                  | 작성자 회원 ID |
-| title      | VARCHAR(100) | NOT NULL                                                                      | 제목        |
-| content    | TEXT         | NOT NULL                                                                      | 본문        |
-| category   | VARCHAR(20)  | NOT NULL,<br/> CHECK(category IN ('NOTICE', 'FREE', 'QNA', 'STUDY', 'JOB'))   | 게시판 카테고리  |
-| status     | VARCHAR(20)  | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE' | 상태        |
-| view_count | INT          | NOT NULL, DEFAULT 0                                                           | 조회수       |
-| created_at | DATETIME     | NOT NULL                                                                      | 생성 일시     |
-| updated_at | DATETIME     | NOT NULL                                                                      | 수정 일시     |
+|    컬럼명     |    데이터 타입    | NULL 허용 |                             제약조건                             |    설명     |
+|:----------:|:------------:|:-------:|:------------------------------------------------------------:|:---------:|
+|  board_id  |    BIGINT    |   불가    |                     PK (AUTO_INCREMENT)                      |  게시글 식별자  |
+| member_id  |    BIGINT    |   불가    |                              FK                              | 작성 회원 식별자 |
+|   title    | VARCHAR(100) |   불가    |                              -                               |  게시글 제목   |
+|  content   |     TEXT     |   불가    |                              -                               |  게시글 내용   |
+|  category  | VARCHAR(20)  |   불가    | CHECK(category IN ('NOTICE', 'FREE', 'QNA', 'STUDY', 'JOB')) | 게시글 카테고리  |
+| view_count |     INT      |   불가    |                          DEFAULT 0                           |    조회수    |
+|   status   | VARCHAR(20)  |   불가    | DEFAULT 'ACTIVE',<br/>CHECK(status IN ('ACTIVE', 'DELETED')) |  게시글 상태   |
+| created_at |   DATETIME   |   불가    |                              -                               |   생성일시    |
+| updated_at |   DATETIME   |   불가    |                              -                               |   수정일시    |
 
 ---
 
@@ -66,32 +62,31 @@ Soft Delete 정책을 적용하며, 삭제된 게시글도 데이터는 유지�
 
 #### 설명
 
-**댓글 및 대댓글** 정보를 저장하는 테이블
-
-Soft Delete 정책을 적용하며, 삭제된 댓글도 데이터는 유지된다.
-
-댓글과 대댓글은 동일한 COMMENT 테이블에서 관리하며, `parent_id`를 통해 자기 참조 관계를 구성한다.
+- `댓글 및 대댓글` 정보를 저장하는 테이블
+- `일반 댓글`과 `대댓글`은 동일한 COMMENT 테이블에서 관리한다.
 
 #### 컬럼 및 제약조건
 
-| 컬럼명        | 타입          | 제약조건                                                                          | 설명        |
-|------------|-------------|-------------------------------------------------------------------------------|-----------|
-| comment_id | BIGINT      | PK (auto_increment)                                                           | 댓글 ID     |
-| member_id  | BIGINT      | FK, NOT NULL                                                                  | 작성자 회원 ID |
-| board_id   | BIGINT      | FK, NOT NULL                                                                  | 게시글 ID    |
-| parent_id  | BIGINT      | FK, NULL                                                                      | 부모 댓글 ID  |
-| content    | TEXT        | NOT NULL                                                                      | 댓글 내용     |
-| status     | VARCHAR(20) | NOT NULL, <br/> CHECK(status IN ('ACTIVE', 'DELETED')),<br/> DEFAULT 'ACTIVE' | 상태        |
-| created_at | DATETIME    | NOT NULL                                                                      | 생성 일시     |
-| updated_at | DATETIME    | NOT NULL                                                                      | 수정 일시     |
+|    컬럼명     |   데이터 타입    | NULL 허용 |                             제약조건                             |    설명     |
+|:----------:|:-----------:|:-------:|:------------------------------------------------------------:|:---------:|
+| comment_id |   BIGINT    |   불가    |                     PK (AUTO_INCREMENT)                      |  댓글 식별자   |
+| member_id  |   BIGINT    |   불가    |                              FK                              | 작성 회원 식별자 |
+|  board_id  |   BIGINT    |   불가    |                              FK                              |  게시글 식별자  |
+| parent_id  |   BIGINT    |   허용    |                              FK                              | 부모 댓글 식별자 |
+|  content   |    TEXT     |   불가    |                              -                               |   댓글 내용   |
+|   status   | VARCHAR(20) |   불가    | DEFAULT 'ACTIVE',<br/>CHECK(status IN ('ACTIVE', 'DELETED')) |   댓글 상태   |
+| created_at |  DATETIME   |   불가    |                              -                               |   생성일시    |
+| updated_at |  DATETIME   |   불가    |                              -                               |   수정일시    |
 
-#### 비고
+#### 설계 및 검증 규칙
 
-- `parent_id`가 NULL이면 최상위 댓글을 의미한다.
-- `parent_id`가 존재하면 대댓글을 의미한다.
-- `parent_id`는 COMMENT.comment_id를 참조하는 Self Reference 외래키이다.
-- 현재 애플리케이션 정책상 대댓글은 1단계까지만 허용한다.
-- 삭제된 댓글은 물리 삭제하지 않고, `status`를 `DELETED`로 변경한다.
+- `parent_id`가 `NULL`이면 `일반 댓글`을 의미한다.
+- `parent_id`가 존재하면 `대댓글`을 의미한다.
+- `parent_id`는 `COMMENT.comment_id`를 참조하는 자기 참조 외래키이다.
+- 부모 댓글은 일반 댓글이어야 한다.
+- 대댓글은 다른 댓글의 부모 댓글이 될 수 없다.
+- 대댓글 깊이를 1단계로 제한하는 규칙은 애플리케이션에서 검증한다.
+- 부모 댓글과 대댓글이 동일한 게시글에 속하는지도 애플리케이션에서 검증한다.
 
 ---
 
@@ -99,27 +94,21 @@ Soft Delete 정책을 적용하며, 삭제된 댓글도 데이터는 유지된�
 
 #### 설명
 
-**좋아요** 정보를 저장하는 테이블
-
-(향후 구현 예정)
+- `게시글 좋아요` 정보를 저장하는 테이블
 
 #### 컬럼 및 제약조건
 
-| 컬럼명           | 타입       | 제약조건                | 설명     |
-|---------------|----------|---------------------|--------|
-| board_like_id | BIGINT   | PK (auto_increment) | 좋아요 ID |
-| member_id     | BIGINT   | FK, NOT NULL        | 회원 ID  |
-| board_id      | BIGINT   | FK, NOT NULL        | 게시글 ID |
-| created_at    | DATETIME | NOT NULL            | 생성 일시  |
-| updated_at    | DATETIME | NOT NULL            | 수정 일시  |
+|      컬럼명      |  데이터 타입  | NULL 허용 |        제약조건         |        설명        |
+|:-------------:|:--------:|:-------:|:-------------------:|:----------------:|
+| board_like_id |  BIGINT  |   불가    | PK (AUTO_INCREMENT) |     좋아요 식별자      |
+|   member_id   |  BIGINT  |   불가    |         FK          | 좋아요를 등록한 회원 식별자  |
+|   board_id    |  BIGINT  |   불가    |         FK          | 좋아요가 등록된 게시글 식별자 |
+|  created_at   | DATETIME |   불가    |          -          |       생성일시       |
+|  updated_at   | DATETIME |   불가    |          -          |       수정일시       |
 
-#### Unique Constraint
+#### 복합 Unique 제약조건
 
-- (board_id, member_id)
-
-#### 비고
-
-- 동일 회원은 동일 게시글에 딱 한 번만 좋아요를 누를 수 있다.
+- `UNIQUE(member_id, board_id)`: 동일 회원이 동일 게시글에 좋아요를 중복 등록하는 것을 방지한다.
 
 ---
 
@@ -127,19 +116,19 @@ Soft Delete 정책을 적용하며, 삭제된 댓글도 데이터는 유지된�
 
 #### 설명
 
-**첨부파일** 정보를 저장하는 테이블
+- `첨부파일` 정보를 저장하는 테이블
 
 #### 컬럼 및 제약조건
 
-| 컬럼명                | 타입           | 제약조건                | 설명           |
-|--------------------|--------------|---------------------|--------------|
-| upload_file_id     | BIGINT       | PK (auto_increment) | 업로드 파일 ID    |
-| board_id           | BIGINT       | FK, NOT NULL        | 게시글 ID       |
-| original_file_name | VARCHAR(255) | NOT NULL            | 사용자 업로드 파일명  |
-| stored_file_name   | VARCHAR(255) | NOT NULL            | 서버 저장 파일명    |
-| file_size          | BIGINT       | NOT NULL            | 파일 크기 (byte) |
-| created_at         | DATETIME     | NOT NULL            | 생성 일시        |
-| updated_at         | DATETIME     | NOT NULL            | 수정 일시        |
+|        컬럼명         |    데이터 타입    | NULL 허용 |        제약조건         |        설명         |
+|:------------------:|:------------:|:-------:|:-------------------:|:-----------------:|
+|   upload_file_id   |    BIGINT    |   불가    | PK (AUTO_INCREMENT) |     첨부파일 식별자      |
+|      board_id      |    BIGINT    |   불가    |         FK          | 첨부파일이 등록된 게시글 식별자 |
+| original_file_name | VARCHAR(255) |   불가    |          -          | 사용자가 업로드한 원본 파일명  |
+|  stored_file_name  | VARCHAR(255) |   불가    |          -          |    서버에 저장된 파일명    |
+|     file_size      |    BIGINT    |   불가    |          -          |    파일 크기(byte)    |
+|     created_at     |   DATETIME   |   불가    |          -          |       생성일시        |
+|     updated_at     |   DATETIME   |   불가    |          -          |       수정일시        |
 
 ---
 
@@ -208,10 +197,8 @@ Soft Delete 정책을 적용하며, 삭제된 댓글도 데이터는 유지된�
 
 #### 설명
 
-- 하나의 댓글은 여러 개의 대댓글을 가질 수 있다.
+- 하나의 일반 댓글은 여러 개의 대댓글을 가질 수 있다.
 - 하나의 대댓글은 반드시 하나의 부모 댓글에 속한다.
-- 최상위 댓글은 parent_id가 NULL이다.
-- 현재 애플리케이션 정책상 대댓글은 1단계까지만 허용한다.
 
 ---
 
@@ -264,7 +251,24 @@ Soft Delete 정책을 적용하며, 삭제된 댓글도 데이터는 유지된�
 - 하나의 게시글은 여러 개의 좋아요를 가질 수 있다.
 - 하나의 좋아요는 반드시 하나의 게시글에 속한다.
 
---- 
+---
+
+## 삭제 및 참조 정책
+
+- `MEMBER`, `BOARD`, `COMMENT` 테이블에는 Soft Delete를 적용한다.
+- Soft Delete 시 데이터를 물리 삭제하지 않고, `status`를 `DELETED`로 변경한다.
+- Soft Delete된 행도 데이터베이스에 남아 있으므로 기존 외래키 관계가 유지된다.
+- 외래키에는 `ON DELETE CASCADE`를 적용하지 않는다.
+
+예시
+
+```text
+MEMBER.status  : ACTIVE → DELETED
+BOARD.status   : ACTIVE → DELETED
+COMMENT.status : ACTIVE → DELETED
+```
+
+---
 
 ## ERD Diagram
 

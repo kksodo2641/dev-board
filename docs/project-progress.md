@@ -247,7 +247,6 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - CommentStatus 구현
 - Comment Repository 구현
 - Comment Self Reference 구조 적용
-- Soft Delete 정책 적용
 
 ### Write
 
@@ -265,36 +264,60 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - 댓글 조회 Service 테스트 작성
 - 댓글과 대댓글 함께 조회
 - 삭제 댓글 표시 정책 적용
+- 로그인 회원별 댓글 수정/삭제 가능 여부 제공
 - 화면 출력 순서에 맞춘 flat list 응답 구성
+
+### Update
+
+- 댓글 및 대댓글 수정 기능 구현
+- 댓글 수정 Service 테스트 작성
+- ACTIVE 회원/댓글/게시글 검증 적용
+- 댓글 작성자만 수정할 수 있도록 권한 정책 적용
+- 관리자도 다른 회원의 댓글을 수정할 수 없도록 제한
+- 삭제된 댓글 수정 제한
+
+### Delete
+
+- 댓글 및 대댓글 삭제 기능 구현
+- 댓글 삭제 Service 테스트 작성
+- ACTIVE 회원/댓글/게시글 검증 적용
+- 댓글 작성자 또는 관리자만 삭제할 수 있도록 권한 정책 적용
+- Soft Delete 정책 적용
+- 삭제된 댓글 재삭제 제한
 
 ### AJAX
 
 - CommentApiController 구현
 - 댓글 목록 조회 API 구현
 - 댓글/대댓글 작성 API 구현
-- 게시글 상세 화면 댓글 영역 AJAX 전환
+- 댓글/대댓글 수정 API 구현
+- 댓글/대댓글 삭제 API 구현
+- 게시글 상세 화면의 댓글 작성/조회/수정/삭제 AJAX 전환
+- 댓글 수정/삭제 성공 시 `204 No Content` 응답 적용
+- 댓글 작성/수정/삭제 성공 후 댓글 목록 전체 재조회 적용
+- 댓글별 수정/삭제 가능 여부에 따른 수정·삭제 버튼 표시
 - 댓글 관련 JavaScript/CSS 파일 분리
 
 ### Validation
 
-- WriteCommentRequest Bean Validation 적용
-- 댓글 내용 필수 입력 및 최대 길이 검증 적용
-- API validation 실패 시 JSON 오류 메시지 응답 처리
+- `WriteCommentRequest`, `UpdateCommentRequest`에 Bean Validation 적용
+- `BindingResult`를 통한 댓글 작성/수정 요청 검증
+- Validation 실패 응답에 `400 Bad Request` 적용
+- JSON 응답의 `message`를 댓글 작성/수정 Form에 표시
+- 서버 Validation과 클라이언트 사전 검증의 역할 분리
 
 ---
 
 # In Progress
 
-Comment 수정/삭제 기능 구현 중
+Comment 수정/삭제 기능 구현 완료 후 프로젝트 문서 최신화 중
 
 ## 현재 브랜치 작업 범위
 
-- 댓글 수정 기능 구현
-- 댓글 삭제 기능 구현
-- 댓글 수정/삭제 AJAX 적용
-- 댓글 수정/삭제 권한 정책 적용
-- 로그인 만료 또는 비로그인 API 요청에 대한 JSON 응답 처리 검토
-- API 전용 예외 처리 구조 검토
+- 댓글 수정/삭제 구현 내용 문서화
+- 댓글 기능 전체 완료 상태 반영
+- 관련 프로젝트 문서 간 내용 일치 여부 검토
+- 기능 브랜치 최종 검토 및 Git 정리
 
 ## 향후 확장 고려 기능
 
@@ -303,18 +326,6 @@ Comment 수정/삭제 기능 구현 중
 ---
 
 # Next Tasks
-
-## Comment
-
-- 댓글 수정 Service 및 테스트 작성
-- 댓글 삭제 Service 및 테스트 작성
-- 댓글 수정 API 구현
-- 댓글 삭제 API 구현
-- 댓글 수정/삭제 AJAX UI 적용
-- 댓글 수정/삭제 브라우저 테스트
-- 댓글 수정/삭제 구현 후 관련 프로젝트 문서 최신화
-- 로그인 만료 또는 비로그인 API 요청에 대한 JSON 응답 처리 검토
-- API 전용 예외 처리 구조 검토
 
 ## BoardLike
 
@@ -335,7 +346,8 @@ Comment 수정/삭제 기능 구현 중
 
 - Spring Data JPA Page/Pageable 기반 페이징 리팩토링 검토
 - API 응답 공통 포맷 검토
-- HTML 화면 예외 처리와 API 예외 처리 분리 검토
+- HTML 화면과 API의 예외 처리 및 응답 구조 분리 검토
+- 로그인 만료 또는 비로그인 API 요청에 대한 JSON 응답 처리 검토
 
 ### Comment 기능 완료 후 안정화 및 리팩토링 계획
 
@@ -348,7 +360,7 @@ Comment 수정/삭제 기능과 AJAX 적용을 완료하고 `main`에 병합한 
 
 #### Board 우선 검토 항목
 
-- 게시글 목록 DTO 변환 시, 작성자 LAY 조회로 인한 N+1 쿼리 가능성 검토
+- 게시글 목록 DTO 변환 시, 작성자 LAZY 조회로 인한 N+1 쿼리 가능성 검토
   - 문제 확인 시 fetch join, DTO projection 등 대안 비교
 - 존재하지 않거나 삭제된 게시글을 검증하기 전에, 조회수 Cookie를 응답에 추가하는 처리 순서 개선
 - 상세 조회할 수 없는 삭제 게시글의 목록 링크 활성화 문제 개선
