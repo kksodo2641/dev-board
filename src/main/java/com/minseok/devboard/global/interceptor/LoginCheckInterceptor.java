@@ -4,12 +4,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
+import static org.springframework.core.annotation.AnnotatedElementUtils.hasAnnotation;
 
 @Component
 public class LoginCheckInterceptor implements HandlerInterceptor {
@@ -18,7 +21,7 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
     public boolean preHandle(final HttpServletRequest request,
                              final HttpServletResponse response,
                              final Object handler) throws Exception {
-        // 비로그인 시에도 게시글 목록/상세, 댓글 목록 조회 허용
+        // 공개 접근 경로: 게시글 목록, 게시글 상세, 댓글 목록
         if (isPublicRequest(request)) {
             return true;
         }
@@ -29,9 +32,16 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
             return true;
         }
         
-        // 비로그인 시, 로그인 화면으로 이동
-        response.sendRedirect("/members/login?redirectURL="
-                                      + getEncodedRedirectURL(request));
+        // 미인증 or 세션이 만료된 경우
+        
+        if (isApiRequest(handler)) { // API 요청 -> 401 Unauthorized
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            
+        } else { // SSR 요청 -> 로그인 페이지로 302 Redirect
+            response.sendRedirect("/members/login?redirectURL="
+                                          + getEncodedRedirectURL(request));
+        }
+        
         return false;
     }
     
@@ -57,6 +67,23 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
         final boolean isCommentList = requestURI.matches("^/boards/\\d+/comments$");
         
         return isGet && (isBoardList || isBoardDetail || isCommentList);
+    }
+    
+    private static boolean isApiRequest(final Object handler) {
+        assert (handler != null);
+        
+        // Controller 메서드가 처리하는 요청만 고려
+        if (!(handler instanceof HandlerMethod handlerMethod)) {
+            return false;
+        }
+        
+        final boolean hasResponseBodyOnClass = hasAnnotation(handlerMethod.getBeanType(),
+                                                             ResponseBody.class);
+        
+        final boolean hasResponseBodyOnMethod = hasAnnotation(handlerMethod.getMethod(),
+                                                              ResponseBody.class);
+        
+        return hasResponseBodyOnClass || hasResponseBodyOnMethod;
     }
     
     private static String getEncodedRedirectURL(final HttpServletRequest request) {
