@@ -89,7 +89,10 @@ async function submitComment(event) {
     }
 
     try {
-        await writeComment(content, null);
+        const success = await writeComment(content, null);
+        if (!success) {
+            return;
+        }
 
         textarea.value = "";
         error.textContent = "";
@@ -120,7 +123,10 @@ async function submitReply(event) {
     }
 
     try {
-        await writeComment(content, parentId);
+        const success = await writeComment(content, parentId);
+        if (!success) {
+            return;
+        }
 
         textarea.value = "";
         error.textContent = "";
@@ -150,8 +156,10 @@ async function submitEditComment(event) {
     }
 
     try {
-        await updateComment(commentId, content);
-        await loadComments();
+        const success = await updateComment(commentId, content);
+        if (success) {
+            await loadComments();
+        }
 
     } catch (exception) {
         console.error(exception);
@@ -163,45 +171,62 @@ async function writeComment(content, parentId) {
     const commentCard = document.querySelector(".comment-card");
     const boardId = commentCard.dataset.boardId;
 
-    const response = await fetch(`/boards/${boardId}/comments`, {
-        method: "POST",
+    const response = await fetch(
+        `/boards/${boardId}/comments`,
+        {
+            method: "POST",
 
-        headers: {
-            "Content-Type": "application/json"
-        },
+            headers: {
+                "Content-Type": "application/json"
+            },
 
-        body: JSON.stringify({
-            content: content,
-            parentId: parentId
-        })
-    });
+            body: JSON.stringify({
+                content: content,
+                parentId: parentId
+            })
+        }
+    );
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        throw new Error(errorResponse.message || "댓글 작성에 실패했습니다.");
+    if (handleUnauthorized(response)) {
+        return false;
     }
+
+    if (response.ok) {
+        return true;
+    }
+
+    const errorResponse = await response.json();
+    throw new Error(errorResponse.message
+                        || "댓글 작성에 실패했습니다.");
 }
 
 async function updateComment(commentId, content) {
-    const response = await fetch(`/comments/${commentId}`, {
-        method: "PATCH",
+    const response = await fetch(
+        `/comments/${commentId}`,
+        {
+            method: "PATCH",
 
-        headers: {
-            "Content-Type": "application/json"
-        },
+            headers: {
+                "Content-Type": "application/json"
+            },
 
-        body: JSON.stringify({
-            content: content
-        })
-    });
+            body: JSON.stringify({
+                content: content
+            })
+        }
+    );
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-
-        throw new Error(
-            errorResponse.message || "댓글 수정에 실패했습니다."
-        );
+    if (handleUnauthorized(response)) {
+        return false;
     }
+
+    if (response.ok) {
+        return true;
+    }
+
+    const errorResponse = await response.json();
+    throw new Error(errorResponse.message
+                        || "댓글 수정에 실패했습니다.");
 }
 
 async function handleDeleteComment(button) {
@@ -212,7 +237,11 @@ async function handleDeleteComment(button) {
     const commentId = Number(button.dataset.commentId);
 
     try {
-        await deleteComment(commentId);
+        const success = await deleteComment(commentId);
+        if (!success) {
+            return;
+        }
+
         await loadComments();
 
     } catch (exception) {
@@ -222,14 +251,24 @@ async function handleDeleteComment(button) {
 }
 
 async function deleteComment(commentId) {
-    const response = await fetch(`/comments/${commentId}`, {
-        method: "DELETE"
-    });
+    const response = await fetch(
+        `/comments/${commentId}`,
+        {
+            method: "DELETE"
+        }
+    );
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        throw new Error(errorResponse.message || "댓글 삭제에 실패했습니다.");
+    if (handleUnauthorized(response)) {
+        return false;
     }
+
+    if (response.ok) {
+        return true;
+    }
+
+    const errorResponse = await response.json();
+    throw new Error(errorResponse.message
+                        || "댓글 삭제에 실패했습니다.");
 }
 
 function renderComments(comments) {
@@ -611,4 +650,19 @@ function formatDateTime(createdAt) {
         minute: "2-digit",
         hour12: false
     });
+}
+
+function handleUnauthorized(response) {
+    if (response.status !== 401) {
+        return false;
+    }
+
+    alert("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
+
+    const redirectURL = window.location.pathname  // 현재 주소   (예: "/boards/15")
+                        + window.location.search; // 쿼리 스트링 (예: "?page=2")
+
+    // 로그인 페이지로 이동
+    window.location.href = `/members/login?redirectURL=${encodeURIComponent(redirectURL)}`;
+    return true;
 }
