@@ -485,9 +485,17 @@ Member와 Board 사이에 발생하는 다대다 관계는 BoardLike를 중간 �
 ### 로그인 확인 및 사용자 식별
 
 - 로그인 필요 여부는 `LoginCheckInterceptor`에서 확인한다.
-- 비로그인 사용자가 로그인이 필요한 경로에 접근하면 로그인 페이지로 이동시킨다.
-- 로그인 성공 후 원래 요청한 경로로 돌아갈 수 있도록 요청 경로를 보존한다.
-- 로그인 회원의 ID는 `LoginMemberIdArgumentResolver`를 통해 Controller에 전달한다.
+- 로그인이 필요한 요청에서 세션에 로그인 회원 ID가 없으면 미인증 상태로 판단한다.
+  - 처음부터 로그인하지 않은 경우
+  - 로그인 후 세션이 만료된 경우
+- 실행 대상 Handler의 `@RestController`와 `@ResponseBody` 적용 여부를 기준으로
+  `SSR 요청`과 `API 요청`을 구분한다.
+- 미인증 요청은 요청 유형에 따라 다르게 처리한다.
+  - `SSR 요청`: 로그인 페이지로 redirect하며, 로그인 성공 후 원래 요청 경로로 복귀할 수 있도록
+    서버에서 복귀 URL을 구성한다.
+  - `API 요청`: 빈 본문의 `401 Unauthorized` 응답을 반환하며,
+    로그인 성공 후 브라우저의 현재 화면으로 복귀할 수 있도록 클라이언트에서 복귀 URL을 구성한다.
+- 로그인 회원 ID는 `LoginMemberIdArgumentResolver`를 통해 Controller에 전달한다.
 - 로그인 확인과 로그인 회원의 식별 책임을 분리한다.
 
 ### 인가
@@ -512,3 +520,6 @@ Member와 Board 사이에 발생하는 다대다 관계는 BoardLike를 중간 �
 
 - [Project Progress](./project-progress.md)
   - 현재 프로젝트 진행 현황 및 개발 계획
+
+- [Troubleshooting](./troubleshooting.md)
+  - 개발 과정에서 발생한 주요 문제의 원인 분석 및 해결 과정 기록

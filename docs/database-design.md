@@ -2,13 +2,13 @@
 
 ## 개요
 
-본 문서는 Dev Board 프로젝트의 데이터베이스 구조를 정의한다.  
-각 테이블의 컬럼 및 제약조건, 테이블 간 관계, 삭제 및 참조 정책, ERD를 다룬다.
+본 문서는 Dev Board 프로젝트의 데이터베이스 스키마와 테이블 구조,
+제약조건, 테이블 간 관계, 삭제 및 참조 정책, ERD를 기록하기 위한 문서이다.  
+실제 데이터베이스 생성에 사용한 DDL은 [`schema.sql`](../sql/schema.sql)에서 관리하며,
+본 문서는 해당 DDL을 바탕으로 데이터베이스 구조와 설계 내용을 설명한다.
 
-데이터베이스 구조와 직접 관련된 규칙은 본 문서에 함께 명시하며,
-실제 데이터베이스 스키마를 정의하는 DDL은 [schema.sql](../sql/schema.sql)에서 관리한다.  
-전체 도메인 규칙 및 비즈니스 정책은 [Domain Design](./domain-design.md)에서 다루며,
-주요 설계 의사결정의 배경과 근거는 [Architecture Decisions](./architecture-decisions.md)에 기록한다.
+현재 애플리케이션에 구현된 핵심 도메인은 MEMBER, BOARD, COMMENT이며,
+BOARD_LIKE와 UPLOAD_FILE은 향후 기능 확장을 고려하여 설계한 테이블이다.
 
 ---
 
@@ -291,3 +291,6 @@ COMMENT.status : ACTIVE → DELETED
 
 - [Project Progress](./project-progress.md)
   - 현재 프로젝트 진행 현황 및 개발 계획
+
+- [Troubleshooting](./troubleshooting.md)
+  - 개발 과정에서 발생한 주요 문제의 원인 분석 및 해결 과정 기록
