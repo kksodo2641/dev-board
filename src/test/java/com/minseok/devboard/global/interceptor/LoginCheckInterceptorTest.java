@@ -1,5 +1,6 @@
 package com.minseok.devboard.global.interceptor;
 
+import com.minseok.devboard.global.exception.api.ApiErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,13 +11,18 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.method.HandlerMethod;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
 import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
@@ -26,11 +32,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class LoginCheckInterceptorTest {
     
+    private JsonMapper jsonMapper;
     private LoginCheckInterceptor interceptor;
     
     @BeforeEach
-    void beforeEach() {
-        interceptor = new LoginCheckInterceptor();
+    void setUp() {
+        jsonMapper = JsonMapper.builder().build();
+        interceptor = new LoginCheckInterceptor(jsonMapper);
     }
     
     @ParameterizedTest
@@ -148,7 +156,7 @@ class LoginCheckInterceptorTest {
     }
     
     @ParameterizedTest
-    @DisplayName("비로그인 사용자의 API 요청은 빈 본문과 401 Unauthorized를 응답한다.")
+    @DisplayName("비로그인 사용자의 API 요청은 LOGIN_REQUIRED JSON과 401 Unauthorized를 응답한다.")
     @MethodSource("apiRequestCases")
     void rejectApiRequestWithoutLogin(final String httpMethod,
                                       final String requestURI,
@@ -166,13 +174,27 @@ class LoginCheckInterceptorTest {
         final boolean result = interceptor.preHandle(request, response, handler);
         
         // then
+        final int status = response.getStatus();
+        final MediaType mediaType = MediaType.parseMediaType(response.getContentType());
+        final String characterEncoding = response.getCharacterEncoding();
+        final JsonNode responseBody = jsonMapper.readTree(response.getContentAsString());
+        
         assertThat(result).isFalse();
         
-        assertThat(response.getStatus())
-                .isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
+        assertThat(status)
+                .isEqualTo(HttpStatus.UNAUTHORIZED.value());
         
-        assertThat(response.getContentAsByteArray())
-                .isEmpty();
+        assertThat(mediaType.isCompatibleWith(MediaType.APPLICATION_JSON))
+                .isTrue();
+        
+        assertThat(characterEncoding)
+                .isEqualTo(StandardCharsets.UTF_8.name());
+        
+        assertThat(responseBody.get("code").asString())
+                .isEqualTo(ApiErrorCode.LOGIN_REQUIRED.getCode());
+        
+        assertThat(responseBody.get("message").asString())
+                .isEqualTo(ApiErrorCode.LOGIN_REQUIRED.getMessage());
     }
     
     private static Stream<Arguments> apiRequestCases() {
