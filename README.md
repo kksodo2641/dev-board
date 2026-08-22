@@ -154,7 +154,7 @@ Dev Board는 개발자들이 게시글과 댓글을 통해 자유롭게 정보�
 ### AJAX
 
 - 댓글 작성/조회/수정/삭제 AJAX 적용
-- CommentApiController 기반 JSON API 분리
+- `CommentApiController` 기반 JSON API 분리
 - 댓글별 권한에 따른 수정/삭제 버튼 표시
 - 게시글 상세 화면에서 페이지 새로고침 없이 댓글 영역 갱신
 - 댓글 수정/삭제 성공 시 `204 No Content` 응답 적용
@@ -162,7 +162,7 @@ Dev Board는 개발자들이 게시글과 댓글을 통해 자유롭게 정보�
 ### Validation
 
 - 댓글 작성/수정 요청에 Bean Validation 적용
-- Validation 실패 시 `400 Bad Request` 응답 적용
+- Validation 실패 시 `400 Bad Request`와 `VALIDATION_ERROR` 적용
 - JSON 오류 메시지를 댓글 작성/수정 Form에 표시
 - 서버 Validation과 클라이언트 사전 검증 역할 분리
 
@@ -221,7 +221,7 @@ View에는 화면에 필요한 데이터만 DTO로 전달하므로 불필요한 
 또한 실행 대상 Handler의 `@RestController`와 `@ResponseBody` 적용 여부를 기준으로
 SSR 요청과 API 요청을 구분한다.  
 미인증 SSR 요청은 로그인 페이지로의 `302 Found` redirect를 적용하고,
-미인증 API 요청은 빈 본문의 `401 Unauthorized`를 반환한다.
+미인증 API 요청은 `LOGIN_REQUIRED` 오류 정보를 담은 JSON을 `401 Unauthorized` 상태로 응답한다.
 
 SSR 요청의 로그인 후 복귀 URL은 서버에서 구성하고,
 API 요청은 브라우저 주소창의 현재 페이지를 기준으로 클라이언트에서 복귀 URL을 구성한다.
@@ -234,16 +234,23 @@ Controller가 `HttpSession`의 구조와 조회 방식에 직접 의존하지 �
 
 ---
 
-## Global Exception Handling
+## SSR / API Exception Handling
 
-`GlobalExceptionHandler`를 통해 여러 Controller에서 공통으로 발생하는 도메인 예외의 처리 정책을 통합한다.  
-Controller마다 동일한 예외 처리 코드를 작성하지 않고, 예외 유형에 따른 응답과 오류 화면 처리를 한 곳에서 관리하여 일관된 예외 처리 구조를 유지한다.
+예외가 발생한 요청 유형에 따라 HTML 화면과 JSON API의 응답 정책을 분리한다.
 
-현재 적용 예외
+- `SsrExceptionHandler`
+  - SSR Controller에서 발생한 도메인 및 권한 예외 처리
+  - 기존 HTML 화면 기반 redirect 정책 유지
+  - HTTP 상태 및 전용 오류 화면 정책은 추후 검토
 
-- MemberNotFoundException
-- BoardNotFoundException
-- AccessDeniedException
+- `ApiExceptionHandler`
+  - API Controller에서 발생한 예외 처리
+  - `ApiErrorCode`와 `ApiErrorResponse` 기반의 일관된 JSON 오류 응답 제공
+
+요청 형식 오류, Validation 실패, 도메인 및 권한 예외를 공통 처리하여
+각 Controller가 비즈니스 요청과 정상 응답 처리에 집중하도록 구성했다.
+
+API 오류 응답의 세부 형식과 오류 코드 목록은 [API Specification](./docs/api-specification.md) 문서를 참고한다.
 
 ---
 
@@ -265,7 +272,7 @@ Controller마다 동일한 예외 처리 코드를 작성하지 않고, 예외 �
 
 ## Pagination
 
-게시판 페이징 계산 로직을 BoardPagingUtils로 분리한다.  
+게시판 페이징 계산 로직을 `BoardPagingUtils`로 분리한다.  
 현재는 게시판 페이징 정책을 명시적으로 제어하고 검증하기 위해 Spring Data JPA의 `Page`와 `Pageable`을 바로 사용하지 않고 자체 구현 방식을 적용했다.
 
 이를 통해 다음과 같은 기능을 직접 설계하고 구현했다.
@@ -278,14 +285,14 @@ Controller마다 동일한 예외 처리 코드를 작성하지 않고, 예외 �
 
 ### 정책
 
-- PAGE_SIZE = 15
-- BLOCK_SIZE = 5
-- MIN_PAGE = 1
+- `PAGE_SIZE` = 15
+- `BLOCK_SIZE` = 5
+- `MIN_PAGE` = 1
 
 ### 페이지 보정
 
-- page < 1 → 첫 번째 페이지
-- page > totalPages → 마지막 페이지
+- `page < 1` → 첫 번째 페이지
+- `page > totalPages` → 마지막 페이지
 
 ### 향후 개선 계획
 
@@ -296,40 +303,38 @@ Controller마다 동일한 예외 처리 코드를 작성하지 않고, 예외 �
 
 ## Comment API / AJAX
 
-댓글 기능은 게시글 상세 화면의 일부 영역만 갱신되는 특성을 가지므로, AJAX 기반으로 구현한다.  
-게시글 상세 화면 자체는 Thymeleaf View로 렌더링하고,
-댓글 작성·조회·수정·삭제는 JSON API로 처리한다.
+댓글 기능은 게시글 상세 화면의 일부 영역만 갱신되는 특성을 고려하여 AJAX 기반으로 구현했다.  
+게시글 상세 화면은 Thymeleaf View로 렌더링하고, 댓글 조회·작성·수정·삭제는 JSON API로 처리한다.
 
-이를 위해 Controller 역할을 다음처럼 분리한다.
+### 요청 처리 구조
 
-```text
-BoardController
- → 게시글 상세 HTML View 반환
+HTML View와 JSON API의 책임을 다음과 같이 분리한다.
 
-CommentApiController
- → 댓글 작성·조회·수정·삭제 JSON API 처리
-```
+- `BoardController`: 게시글 상세 HTML View 반환
+- `CommentApiController`: 댓글 조회·작성·수정·삭제 JSON API 처리
 
-이를 통해 댓글 작업마다 전체 페이지를 다시 불러오지 않고도 화면을 갱신할 수 있으며,
-HTML View 처리와 댓글 JSON API의 책임을 분리할 수 있다.
+댓글 변경에 성공하면 목록 전체를 다시 조회하여 서버의 최신 정렬 순서, 삭제 상태 및 로그인 회원의 수정/삭제 권한을 화면에 일관되게 반영한다.
 
-댓글 변경 후에는 목록을 전체 재조회하여 서버의 최신 정렬 순서, 삭제 상태 및 권한 정보를 화면에 일관되게 반영한다.
+- 댓글 작성 성공: `201 Created`
+- 댓글 수정·삭제 성공: `204 No Content`
+- 댓글 작성·수정 Validation 실패: `400 Bad Request` + `VALIDATION_ERROR` 오류 코드
 
-현재 적용 범위
+### 응답 및 오류 처리
 
-- 댓글 목록 조회
-- 댓글 및 대댓글 작성/수정/삭제
-- 로그인 회원별 수정/삭제 가능 여부 제공
-- 권한에 따른 수정/삭제 버튼 표시
-- 작성/수정 Validation 오류 메시지 표시
-- 작성/수정/삭제 성공 후 댓글 목록 전체 재조회
-- 수정/삭제 성공 시 `204 No Content` 응답
-- 댓글 변경 요청의 공통 인증 만료 처리
-- 인증 만료 시 로그인 후 현재 게시글 상세 화면으로 복귀
+댓글 조회·작성·수정·삭제 요청에 공통 API 응답 처리 방식을 적용하여
+성공, API 오류 및 네트워크 연결 실패에 일관되게 대응한다.
 
-세션이 만료된 상태에서 댓글 변경을 요청하면 `401 Unauthorized`를 감지하여 로그인 페이지로 이동한다.  
-로그인 후에는 기존 게시글 상세 화면으로 복귀하지만,
-사용자의 의도나 중복 실행 가능성을 고려하여 중단된 변경 요청을 자동으로 다시 실행하지 않는다.
+API 요청에 실패하면 서버가 반환한 오류 메시지를 우선 표시하고,
+정상적인 JSON 오류 응답을 받을 수 없는 경우에는 요청별 fallback 메시지를 사용한다.  
+JSON이 아닌 오류 응답과 네트워크 연결 실패도 공통 오류 처리 흐름에 포함하여
+브라우저의 기술적인 오류가 사용자에게 직접 노출되지 않도록 한다.
+
+### 인증 만료 처리
+
+세션이 만료된 상태에서 인증이 필요한 댓글 API를 요청하면
+`LOGIN_REQUIRED` 오류 코드와 `401 Unauthorized` 응답을 감지하여 로그인 페이지로 이동한다.  
+로그인 후에는 기존 게시글 상세 화면으로 복귀하지만, 사용자의 의도와 중복 실행 가능성을 고려하여
+중단된 댓글 변경 요청은 자동으로 재실행하지 않는다.
 
 ---
 
@@ -355,24 +360,36 @@ HTML View 처리와 댓글 JSON API의 책임을 분리할 수 있다.
 
 # 테스트 전략
 
-Dev Board는 단순 정상 동작 확인에 그치지 않고, 상태와 권한에 따른 비즈니스 규칙 검증에 초점을 둔다.
+Dev Board는 기능의 정상 동작만 확인하는 데 그치지 않고,
+도메인 상태와 사용자 권한에 따른 실패 흐름까지 검증하는 것을 목표로 한다.
 
-예시
+## 비즈니스 규칙 검증
 
-- 회원가입 중복 검증
-- 로그인 정책 검증
-- 공지사항 작성 권한 검증
-- 게시글 수정/삭제 권한 검증
-- 게시글 페이징 정책 검증
-- 페이지 보정(clamp) 정책 검증
-- 댓글 작성 정책 검증
-- 대댓글 1단계 제한 검증
-- 삭제 댓글 표시 정책 검증
-- 댓글 조회 순서 검증
-- 댓글 수정/삭제 권한 검증
-- 댓글 수정/삭제 상태 검증
+Service 테스트에서는 회원, 게시글과 댓글의 상태에 따른 유스케이스 수행 가능 여부를 검증한다.  
+작성자와 관리자의 수정/삭제 권한, 공지사항 작성 권한, 대댓글 단계 제한, 삭제 데이터의 사용 제한 등
+주요 비즈니스 규칙이 정상 흐름과 예외 상황에서 일관되게 적용되는지 확인한다.
 
-또한 개발 환경과 테스트 환경을 분리하여 테스트를 수행한다.
+게시글 페이징처럼 계산 규칙이 포함된 기능은
+첫 페이지와 마지막 페이지, 페이지 블록 경계, 범위를 벗어난 페이지 보정 등 경계값을 함께 검증한다.
+
+## 웹 요청 및 API 응답 검증
+
+웹 계층에서는 미인증 SSR 요청과 API 요청이 각각 redirect와 JSON 오류 응답으로 분기되는지 검증한다.
+
+API 예외 처리 테스트에서는 잘못된 JSON, 타입 불일치, Validation 실패, 도메인 및 권한 예외가
+정해진 HTTP 상태와 `ApiErrorCode`, 오류 메시지 및 JSON 응답 형식으로 변환되는지 확인한다.  
+이를 통해 예외 처리 구현뿐 아니라, 서버와 클라이언트 사이의 오류 응답 계약이 유지되는지도 함께 검증한다.
+
+## 테스트 환경 및 브라우저 검증
+
+개발 환경과 테스트 환경의 데이터베이스를 분리하여
+테스트 실행이 개발 데이터에 영향을 주지 않도록 구성한다.
+
+자동화 테스트 이후에는 브라우저 개발자 도구 등을 활용하여
+댓글의 정상 처리, Validation 실패, 인증 만료, 도메인 및 권한 오류,
+JSON이 아닌 응답과 네트워크 연결 실패까지 확인한다.  
+이를 통해 서버의 응답뿐 아니라, 실제 화면에 표시되는 메시지와 로그인 후 페이지 복귀 등
+클라이언트의 최종 동작도 함께 검증한다.
 
 ---
 
@@ -410,8 +427,8 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ### 인증 & 권한
 
-- LoginCheckInterceptor
-- LoginMemberId ArgumentResolver
+- `LoginCheckInterceptor`
+- `LoginMemberIdArgumentResolver`
 - 세션 기반 인증
 - 관리자 권한 정책
 - 미인증 SSR/API 요청의 응답 정책 분리
@@ -444,10 +461,12 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ### 공통 인프라
 
-- GlobalExceptionHandler
+- SSR/API 전용 예외 처리기 분리
+- `ApiErrorCode`와 `ApiErrorResponse` 기반 API 오류 응답 표준화
+- 요청 형식, Validation, 도메인 및 권한 예외 공통 처리
 - 테스트 DB 분리
 - Soft Delete 정책 적용
-- WebConfig 기반 Interceptor 및 ArgumentResolver 등록
+- `WebConfig` 기반 Interceptor 및 ArgumentResolver 등록
 
 ---
 
@@ -455,12 +474,14 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ### Documentation
 
-- 세션 만료 문제의 원인 및 해결 과정 문서화
-- SSR 요청과 API 요청의 미인증 처리 정책 문서화
-- 관련 프로젝트 문서에 구현 및 설계 결정 반영
+- API Specification 문서 추가
+- API 오류 응답 구조와 클라이언트 처리 정책 문서화
+- SSR/API 예외 처리 및 Validation 관련 Architecture Decisions 갱신
+- 세션 만료 Troubleshooting에 후속 오류 응답 표준화 과정 반영
+- README, Domain Design 및 Project Progress 최신화
 - 프로젝트 문서 간 정책·용어·링크 일치 여부 검토
-- 브라우저 수동 테스트 및 전체 테스트 결과 최종 확인
-- 변경 사항 커밋 및 Git 정리
+- 전체 변경 사항 및 테스트 결과 최종 확인
+- 문서 변경 사항 커밋 및 Git 정리
 
 ---
 
@@ -485,8 +506,6 @@ Dev Board는 다음 순서로 기능을 구현한다.
 ### 리팩토링
 
 - Spring Data JPA Page/Pageable 기반 페이징 리팩토링 검토
-- API 응답 공통 포맷 검토
-- 인증 실패 외의 HTML 화면과 API 예외 처리 및 응답 구조 분리 검토
 
 ---
 
@@ -497,6 +516,9 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 - [Database Design](./docs/database-design.md)
   - 데이터베이스 스키마, 관계 및 ERD 정의
+
+- [API Specification](./docs/api-specification.md)
+  - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세
 
 - [Architecture Decisions](./docs/architecture-decisions.md)
   - 주요 아키텍처 설계 의사결정 기록

@@ -493,7 +493,7 @@ Member와 Board 사이에 발생하는 다대다 관계는 BoardLike를 중간 �
 - 미인증 요청은 요청 유형에 따라 다르게 처리한다.
   - `SSR 요청`: 로그인 페이지로 redirect하며, 로그인 성공 후 원래 요청 경로로 복귀할 수 있도록
     서버에서 복귀 URL을 구성한다.
-  - `API 요청`: 빈 본문의 `401 Unauthorized` 응답을 반환하며,
+  - `API 요청`: `LOGIN_REQUIRED` 코드와 메시지를 포함한 JSON을 `401 Unauthorized` 상태로 반환하며,
     로그인 성공 후 브라우저의 현재 화면으로 복귀할 수 있도록 클라이언트에서 복귀 URL을 구성한다.
 - 로그인 회원 ID는 `LoginMemberIdArgumentResolver`를 통해 Controller에 전달한다.
 - 로그인 확인과 로그인 회원의 식별 책임을 분리한다.
@@ -514,6 +514,9 @@ Member와 Board 사이에 발생하는 다대다 관계는 BoardLike를 중간 �
 
 - [Database Design](./database-design.md)
   - 데이터베이스 스키마, 관계 및 ERD 정의
+
+- [API Specification](./api-specification.md)
+  - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세
 
 - [Architecture Decisions](./architecture-decisions.md)
   - 주요 아키텍처 설계 의사결정 기록

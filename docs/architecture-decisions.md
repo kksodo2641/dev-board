@@ -386,199 +386,181 @@ public String writeForm(@LoginMemberId Long memberId) {
 
 Dev Board는 Thymeleaf 기반 SSR 화면과 `fetch()` 기반 JSON API를 함께 사용한다.
 
-일반적인 SSR 요청에서는 미인증 사용자를 로그인 페이지로 redirect하는 방식이 자연스럽다.  
-그러나 댓글 작성·수정·삭제와 같은 API 요청에도 동일한 redirect 정책을 적용하면,
-`fetch()`가 redirect를 자동으로 따라가면서 최초 인증 실패가 최종 응답 뒤에 가려질 수 있다.
+기존에는 모든 미인증 요청을 로그인 페이지로 redirect했다.  
+그러나 API 요청에서 `fetch()`가 redirect를 자동으로 따라가면서 다음 문제가 발생했다.
 
-실제로 로그인 상태로 게시글 상세 페이지를 연 뒤,
-세션이 만료된 상태에서 댓글 변경 요청을 실행하자 다음 문제가 발생했다.
+- 댓글 작성 요청이 로그인 Form의 `200 OK`를 성공 응답으로 오인
+- 댓글 수정·삭제 요청이 로그인 URL에서 `405 Method Not Allowed` 발생
+- 로그인 후 복귀 URL로 게시글 화면이 아닌 API 경로가 전달됨
 
-- `POST` 요청은 redirect 과정에서 `GET`으로 변경되어 로그인 폼 HTML과 `200 OK`를 받았다.
-- 클라이언트는 해당 응답을 댓글 작성 성공으로 오인했다.
-- `PATCH`와 `DELETE` 요청은 redirect 이후에도 메서드가 유지되어 로그인 URL에서 `405 Method Not Allowed`가 발생했다.
-- 서버가 API 요청 URL을 `redirectURL`로 전달하여, 로그인 후 사용자가 돌아가야 할 게시글 상세 페이지를 보존하지 못했다.
-
-따라서 SSR 요청과 API 요청의 특성에 맞게 미인증 처리 정책을 분리하고,
-API 인증 실패 이후의 사용자 안내와 화면 이동 책임을 어디에 둘지 결정할 필요가 있었다.
+상세한 재현 과정 및 원인 분석은 [Troubleshooting](./troubleshooting.md)에서 관리한다.
 
 ### 고려한 대안
 
-#### 모든 미인증 요청을 로그인 페이지로 redirect
-
-SSR 요청과 API 요청을 구분하지 않고, 모든 미인증 요청에 로그인 페이지로의 `302 Found`를 반환한다.
-
-일반적인 화면 요청에는 자연스럽지만, `fetch()`가 redirect를 자동으로 따라가면
-클라이언트가 최초 인증 실패를 직접 확인하기 어렵다.  
-또한 요청 메서드에 따라 로그인 폼 HTML을 성공 응답으로 오인하거나
-로그인 URL에서 `405 Method Not Allowed`가 발생할 수 있다.
-
-#### 모든 미인증 요청에 401 Unauthorized 응답
-
-SSR 요청과 API 요청을 구분하지 않고, 모든 미인증 요청에 `401 Unauthorized`를 반환한다.
-
-API에서는 인증 실패를 명확하게 표현할 수 있지만, 사용자가 브라우저에서 인증이 필요한
-SSR 페이지에 직접 접근했을 때, 로그인 화면으로 자연스럽게 이동하지 않는다.  
-로그인 페이지 이동과 원래 요청 페이지 복귀를 모든 화면에서 별도로 처리해야 하므로,
-기존 SSR 인증 흐름과 맞지 않는다.
-
-#### SSR 요청과 API 요청을 구분하여 처리
-
-SSR 요청에는 로그인 페이지로의 redirect를 유지하고,
-API 요청에는 `401 Unauthorized`를 반환한다.
-
-SSR 화면 이동은 서버가 담당하고 현재 화면 상태를 알고 있는 API 클라이언트는
-인증 실패 안내와 로그인 페이지 이동을 담당한다.
+- 모든 미인증 요청을 redirect
+  - SSR에는 자연스럽지만 API의 인증 실패가 최종 응답 뒤에 가려질 수 있음
+- 모든 미인증 요청에 `401 Unauthorized` 반환
+  - API에는 적합하지만 SSR 화면에서 로그인 페이지로 자연스럽게 이동하지 않음
+- SSR과 API 요청을 구분하여 처리
+  - 요청 유형에 맞는 응답을 제공할 수 있지만, 서버와 클라이언트의 역할 분리가 필요
 
 ### 결정
 
-미인증 요청을 SSR 요청과 API 요청으로 구분하여 서로 다른 응답 정책을 적용한다.
+미인증 요청을 SSR과 API로 구분하여 다음 정책을 적용한다.
 
-#### SSR 요청 처리
+#### 요청 유형 판별
 
-미인증 SSR 요청에는 기존과 같이 로그인 페이지로의 `302 Found`를 반환한다.
-
-서버는 실제로 요청받은 URI와 쿼리 스트링을 조합해 원래 요청 URL을 구성하고,
-이를 `redirectURL` 쿼리 파라미터의 값으로 전달한다.  
-로그인 성공 후에는 해당 URL로 복귀시킨다.
-
-구체적인 로그인 후 복귀 정책은 `AD-006. 로그인 후 원래 요청 페이지 복귀`를 따른다.
-
-#### API 요청 처리
-
-미인증 API 요청에는 로그인 페이지로 redirect하지 않고 다음 응답을 반환한다.
-
-```text
-HTTP 401 Unauthorized
-빈 응답 본문
-```
-
-API 인증 실패는 HTTP 상태 코드만으로 명확하게 표현할 수 있으므로,
-별도의 오류 메시지나 로그인 페이지 HTML을 응답 본문에 포함하지 않도록 결정했다.
-
-#### API 요청 판별 기준
-
-현재 요청을 처리할 Handler가 `HandlerMethod`인 경우,
-Controller 또는 Handler 메서드에 `@ResponseBody`가 적용되어 있는지를 확인한다.
-
-`@RestController`는 `@ResponseBody`를 포함하는 메타 애너테이션이므로,
-다음 두 형태를 동일한 API 요청으로 판별한다.
+현재 Handler의 `@ResponseBody` 적용 여부를 기준으로 API 요청을 판별한다.
 
 - `@RestController`가 적용된 Controller
 - 개별 Handler 메서드에 `@ResponseBody`가 적용된 Controller
 
-Handler가 `HandlerMethod`가 아니거나 `@ResponseBody`가 적용되지 않은 경우에는 SSR 요청으로 처리한다.
+Handler가 `HandlerMethod`가 아니거나 `@ResponseBody`가 적용되지 않았다면
+SSR 요청으로 처리한다.
 
-이를 통해 URL 경로나 HTTP 메서드 같은 간접적인 규칙이 아니라,
-Handler가 응답 본문을 반환하는지에 따라 요청 유형을 판별한다.
+#### SSR 요청
 
-#### API 인증 실패 이후의 클라이언트 처리
+미인증 SSR 요청에는 로그인 페이지로의 `302 Found`를 반환한다.
 
-댓글 작성·수정·삭제 요청은 공통 인증 만료 처리 함수를 통해 응답 상태를 확인한다.
+서버는 요청 URI와 쿼리 스트링으로 `redirectURL`을 구성하고,
+로그인 성공 후 원래 요청 화면으로 복귀시킨다.
 
-응답 상태가 `401 Unauthorized`이면, 클라이언트는 다음 순서로 처리한다.
+구체적인 복귀 정책은 `AD-006. 로그인 후 원래 요청 페이지 복귀`를 따른다.
+
+#### API 요청
+
+미인증 API 요청에는 redirect 대신 다음 응답을 반환한다.
 
 ```text
-세션 만료 안내
-→ 현재 게시글 상세 페이지 주소 구성
-→ 해당 주소를 redirectURL 쿼리 파라미터의 값으로 전달
-→ 로그인 페이지로 이동
+HTTP 401 Unauthorized
+ApiErrorCode LOGIN_REQUIRED
 ```
 
-API 요청 URL은 데이터를 변경하기 위한 엔드포인트이며,
-로그인 후 사용자가 돌아가야 할 화면 주소가 아니다.
+`LoginCheckInterceptor`는 Controller 실행 전에 요청을 차단하므로,
+`ApiExceptionHandler`가 아닌 Interceptor에서 JSON 응답을 직접 생성한다.
 
-따라서 API 요청에서는 서버가 요청 URL을 복귀 주소로 사용하지 않는다.  
-현재 화면을 알고 있는 클라이언트가 다음 값을 조합해 게시글 상세 페이지의 경로와 쿼리 스트링을 보존한다.
+응답은 다른 API 오류와 동일하게 `ApiErrorCode`와 `ApiErrorResponse`를 사용한다.  
+초기에는 빈 본문의 `401 Unauthorized`를 사용했지만,
+공통 API 오류 응답 도입 후 `LOGIN_REQUIRED` JSON 응답으로 확장했다.
 
-```javascript
-window.location.pathname + window.location.search
+구체적인 응답 명세는 [API Specification](./api-specification.md)에서 관리한다.
+
+#### 클라이언트 처리
+
+댓글 클라이언트는 다음 조건을 모두 만족할 때 로그인 필요 상황으로 처리한다.
+
+```text
+HTTP 401 Unauthorized
++
+ApiErrorCode LOGIN_REQUIRED
 ```
 
-#### 중단된 변경 요청의 자동 재실행 여부
+조건을 만족하면 세션 만료를 안내하고,
+현재 화면의 경로와 쿼리 스트링을 `redirectURL`로 전달하여 로그인 페이지로 이동한다.
 
-인증 실패로 중단된 댓글 작성·수정·삭제 요청은 로그인 성공 후 자동으로 재실행하지 않는다.
-
-자동 재실행을 지원하려면 요청 종류, 대상 데이터와 사용자 입력 내용을 별도로 보존하고
-로그인 후 안전하게 복원해야 한다.  
-또한 로그인 후에도 사용자가 같은 변경 작업을 원하는지 확인하지 않은 채
-이전 요청을 전송하면, 의도하지 않은 데이터 변경이 이루어질 수 있다.
-
-따라서 로그인 후에는 원래 게시글 상세 페이지로 복귀만 시키며,
-중단된 변경 요청은 사용자가 직접 다시 실행하도록 한다.
+로그인 후에는 원래 게시글 화면으로 복귀하지만,
+의도하지 않은 데이터 변경을 방지하기 위해
+중단된 댓글 요청을 자동으로 재실행하지 않는다.
 
 ### 이유
 
-SSR 요청과 API 요청은 인증 실패 이후 기대하는 동작이 서로 다르다.
+- SSR과 API는 인증 실패 이후 기대하는 동작이 서로 다르다.
+- API에 redirect를 반환하면 `fetch()`의 자동 추적으로 최초 인증 실패가 가려질 수 있다.
+- 현재 화면의 복귀 URL은 해당 화면을 알고 있는 클라이언트가 구성하는 것이 적절하다.
+- HTTP 상태와 오류 코드를 함께 사용하면 `message` 문자열에 의존하지 않고 인증 오류를 구분할 수 있다.
+- 중단된 변경 요청의 자동 재실행보다 사용자의 의도와 데이터 변경의 안전성을 우선한다.
 
-SSR 요청은 사용자가 브라우저에서 화면을 직접 요청하는 흐름이므로,
-서버가 로그인 페이지로 이동시키고 로그인 후 원래 요청 페이지로 복귀시키는 방식이 적합하다.
+### 결과 및 트레이드오프
 
-반면 API 요청은 클라이언트가 응답을 해석하여 현재 화면 상태를 갱신하는 흐름이다.  
-이때 서버가 로그인 페이지로 redirect하면, `fetch()`의 자동 redirect 처리로 인해
-최초 인증 실패가 최종 응답에 숨겨질 수 있다.
-
-따라서 API에서는 인증 실패를 `401 Unauthorized`로 명확하게 표현하고,
-사용자 안내 및 로그인 페이지로의 이동은 현재 화면을 알고 있는 클라이언트가 담당하도록 책임을 분리했다.
-
-API 요청 판별 기준으로 `@ResponseBody` 적용 여부를 사용하는 이유는 다음과 같다.
-
-- 간접적인 규칙인 URL 이름이나 경로 규칙에 의존하지 않는다.
-- `GET`, `POST`, `PATCH`, `DELETE` 등 HTTP 메서드와 관계없이 같은 기준을 적용할 수 있다.
-- `@RestController`와 메서드 단위의 `@ResponseBody`를 함께 지원할 수 있다.
-- 실제 Handler의 응답 방식에 따라, SSR 요청과 API 요청을 구분할 수 있다.
-
-또한 로그인 후 화면 복귀와 중단된 데이터 변경 요청의 재실행은 서로 다른 정책으로 보았다.  
-현재 단계에서는 이전 요청을 자동으로 복원하는 편의성보다는
-의도하지 않은 데이터 변경을 방지하는 안전성과 구현의 단순성을 우선했다.
-
-### 결과
-
-- 미인증 SSR 요청은 로그인 페이지로 redirect
-- 미인증 API 요청은 빈 본문의 `401 Unauthorized` 반환
-- `fetch()`의 자동 redirect로 인해 인증 실패가 숨겨지는 문제 방지
-- 로그인 폼 HTML을 API 성공 응답으로 오인하는 문제 방지
-- redirect 이후 `PATCH`, `DELETE` 요청에서 발생하던 `405 Method Not Allowed` 방지
-- SSR 요청의 복귀 URL은 서버가 구성
-- API 요청의 화면 복귀 URL은 현재 화면 상태를 알고 있는 클라이언트가 구성
-- 로그인 후 원래 게시글 상세 페이지로 복귀 가능
-- 인증 실패로 중단된 데이터 변경 요청의 성공 후 처리 중단
-- 중단된 데이터 변경 요청은 로그인 후 자동으로 재실행하지 않음
-- SSR 화면 이동과 API 인증 실패 처리의 책임 분리
-- 새로운 AJAX 변경 기능에서도 공통 인증 만료 처리 함수를 재사용할 수 있는 기반 마련
-
-### 트레이드오프
-
-- AJAX 기반 변경 요청마다 `401 Unauthorized`를 검사하는 클라이언트 처리가 필요하다.
-- 새로운 API Controller나 `@ResponseBody` Handler를 추가할 때도 공통 인증 만료 처리 정책을 적용해야 한다.
-- 현재 요청 유형 판별 방식은 Spring MVC의 Handler 애너테이션 구조에 의존한다.
-- 로그인 후 중단된 요청을 자동으로 복원하지 않으므로, 사용자는 내용 입력 및 변경 작업을 다시 수행해야 한다.
-- 향후 API 클라이언트가 다양해지면, 오류 응답 형식과 인증 실패 처리 방식을 별도의 공통 API 규격으로 확장할 필요가 있다.
+- SSR 요청은 기존의 로그인 redirect 흐름 유지
+- API 요청은 `401 Unauthorized`와 `LOGIN_REQUIRED` JSON 응답 반환
+- 로그인 Form HTML의 성공 응답 오인 및 redirect 이후의 `405 Method Not Allowed` 문제 해결
+- 로그인 후 원래 게시글 상세 화면으로 복귀
+- 인증 실패 이후 입력 초기화와 댓글 목록 재조회 등의 성공 처리 중단
+- 댓글 API의 인증 실패 처리 흐름 공통화
+- API 클라이언트가 HTTP 상태와 오류 코드를 함께 해석해야 함
+- `LoginCheckInterceptor`가 JSON 응답 생성 책임을 일부 담당함
+- 중단된 변경 요청은 사용자가 로그인 후 다시 실행해야 함
 
 ---
 
 # 3. 예외 처리
 
-## AD-007. GlobalExceptionHandler 기반 예외 처리
+## AD-007. SSR과 API 예외 처리 구조 분리
 
 ### 배경
 
-Controller마다 예외를 직접 처리하면, 예외 처리 정책이 분산된다.
+Dev Board는 Thymeleaf 기반 SSR 요청과 JSON 기반 API 요청을 함께 사용한다.
+
+기존 `GlobalExceptionHandler`는 여러 Controller의 도메인 및 권한 예외를 공통 처리했다.  
+그러나 SSR은 redirect 또는 HTML View가 필요하고, API는 HTTP 상태와 JSON 응답이 필요하다.  
+이때 두 응답 정책을 하나의 처리기에서 함께 담당하면 책임과 분기가 증가한다.
+
+또한 API Controller에서 요청 형식, Validation, 도메인 및 권한 오류를 직접 처리하면
+오류 응답 생성 코드가 반복되고 형식이 달라질 수 있다.
+
+### 고려한 대안
+
+- 하나의 전역 예외 처리기 유지
+  - 클래스는 하나로 유지할 수 있지만, 요청 유형에 따른 응답 분기가 증가한다.
+- Controller별 예외 처리
+  - 각 요청에 맞게 처리할 수 있지만, 중복이 발생하고 오류 정책이 분산된다.
+- SSR과 API 전용 예외 처리기 분리
+  - 클래스는 늘어나지만, 요청 유형별 책임과 확장 범위를 명확히 구분할 수 있다.
 
 ### 결정
 
-@ControllerAdvice 기반 전역 예외 처리 구조를 도입했다.
+기존 `GlobalExceptionHandler`를 `SsrExceptionHandler`와 `ApiExceptionHandler`로 분리한다.
 
-### 적용 예외
+#### SSR 예외 처리
 
-- MemberNotFoundException
-- BoardNotFoundException
-- AccessDeniedException
+`SsrExceptionHandler`에는 `@ControllerAdvice`를 적용하고, 다음 SSR Controller로 적용 범위를 제한한다.
 
-### 결과
+- `HomeController`
+- `MemberController`
+- `BoardController`
 
-- 예외 처리 정책 통일
-- 중복 제거
-- 사용자 경험 향상
+이를 통해 SSR 예외 처리 메서드가 API Controller의 예외를 처리하지 않도록 한다.  
+현재는 기존 redirect 정책을 유지하며,
+HTTP 상태와 전용 오류 화면 정책은 추후 별도로 확정한다.
+
+#### API 예외 처리
+
+`ApiExceptionHandler`에는 `@RestControllerAdvice`를 적용하고,
+`@RestController`에서 발생한 예외를 HTTP 상태와 `{code, message}` 형식의 JSON으로 반환한다.
+
+- HTTP 상태: 요청 처리 결과의 표준적 의미 표현
+- `code`: 클라이언트가 세부 오류를 식별하기 위한 애플리케이션 오류 코드
+- `message`: 사용자에게 안내 가능한 오류 메시지
+
+클라이언트 동작은 변경될 수 있는 `message`가 아닌, HTTP 상태와 `code`를 기준으로 결정한다.
+
+`ApiErrorCode`는 오류 코드, HTTP 상태와 기본 메시지를 관리한다.  
+`ApiErrorResponse`는 클라이언트에게 반환할 `code`와 `message`를 표현한다.
+
+처리되지 않은 API 예외는 `500 Internal Server Error`와 `INTERNAL_SERVER_ERROR`로 변환한다.  
+내부 예외 정보는 응답에 노출하지 않고 원본 예외를 서버 로그에 기록한다.
+
+구체적인 응답 구조 및 오류 코드 목록은 [API Specification](./api-specification.md)에서 관리한다.  
+Validation 오류는 `AD-033`, 미인증 요청은 `AD-036`의 세부 정책을 따른다.
+
+### 이유
+
+- SSR과 API는 예외 발생 후 필요한 응답 방식이 다르다.
+- 요청 유형별 처리기를 분리하면 `redirect`·`View`와 `JSON` 응답이 섞이지 않는다.
+- Controller가 오류 응답 생성 대신 정상 요청 처리에 집중할 수 있다.
+- HTTP 상태와 오류 코드를 함께 사용하면 같은 상태의 세부 오류를 구분할 수 있다.
+- 새로운 API와 오류 코드에서도 공통 응답 구조를 재사용할 수 있다.
+
+### 결과 및 트레이드오프
+
+- SSR과 API의 예외 처리 책임 및 적용 범위 분리
+- API 오류 응답을 `{code, message}` 형식으로 통일
+- `CommentApiController`의 `BindingResult` 및 오류 응답 생성 코드 제거
+- 예상하지 못한 API 예외의 내부 정보 노출 방지 및 서버 로그 기록
+- 예외 처리 클래스와 오류 코드 매핑 관리 대상 증가
+- 새로운 SSR Controller 추가 시 `SsrExceptionHandler` 적용 범위 갱신 필요
+- Spring MVC에서 Controller 선택 이전에 발생한 오류는 공통 API 오류 형식으로 변환되지 않을 수 있음
 
 ---
 
@@ -1642,81 +1624,71 @@ DELETE  /comments/{commentId}      → 204 No Content
 
 ### 배경
 
-댓글 작성과 수정 API는 JSON 요청을 받는다.  
-HTML Form 기반 요청에서는 validation 실패 시 오류 정보와 함께 HTML View를 다시 렌더링할 수 있다.
-
-반면 AJAX 기반 API 요청에서는 클라이언트가 오류를 식별하고 화면에 표시할 수 있도록 validation 실패 결과를 JSON 형식으로 반환해야 한다.
-
-댓글 작성과 수정 요청의 `content`에는 다음 validation을 적용한다.
+댓글 작성·수정 API는 JSON 요청 DTO의 댓글 내용을 Bean Validation으로 검증한다.
 
 - 공백을 포함한 빈 내용 입력 제한
 - 최대 2,000자 길이 제한
 
-validation 실패 응답을 Spring MVC의 기본 처리에 맡길지, 각 Controller에서 직접 구성할지, 또는 전역 예외 처리 구조를 도입할지를 결정할 필요가 있었다.
+AJAX 클라이언트가 Validation 실패를 식별하고 입력 영역에 메시지를 표시하려면,
+서버가 HTTP 상태와 일관된 JSON 오류 응답을 제공해야 한다.
+
+클라이언트 사전 검증은 우회할 수 있으므로,
+요청 데이터의 유효성을 최종적으로 보장하는 책임은 서버에 둔다.
 
 ### 고려한 대안
 
-#### Spring MVC 기본 예외 처리에 위임
-
-`@Valid @RequestBody` validation 실패 시 Spring MVC의 기본 오류 응답을 사용한다.  
-별도의 처리 코드를 작성하지 않아도 되지만, 클라이언트가 사용하기 위한 오류 응답 형식과 메시지를 직접 제어하기 어렵다.
-
-#### Controller에서 BindingResult 처리
-
-Controller 메서드에서 `BindingResult`를 받아 validation 실패 응답을 직접 구성한다.  
-각 API에서 처리 코드가 필요하지만, 현재 기능에 필요한 오류 응답을 명시적으로 구성할 수 있다.
-
-#### 전역 API 예외 처리 도입
-
-`@RestControllerAdvice`를 도입하여 API validation 예외를 공통 처리한다.  
-오류 응답을 일관되게 관리할 수 있지만, 현재 API 규모에 비해 별도의 공통 응답 구조가 필요하다.
+- Spring MVC 기본 오류 응답 사용
+  - 별도 구현은 필요 없지만, 오류 코드와 메시지 형식을 직접 제어하기 어렵다.
+- Controller에서 `BindingResult` 처리
+  - 응답을 명시적으로 구성할 수 있지만, Controller의 책임과 중복 코드가 증가한다.
+- 전역 API 예외 처리기에서 처리
+  - 공통 구조가 필요하지만, Controller를 단순화하고 API 오류 형식을 통일할 수 있다.
 
 ### 결정
 
-현재 단계에서는 `CommentApiController`에서 `BindingResult`를 사용하여 validation 실패 응답을 직접 처리한다.
+초기에는 `CommentApiController`에서 `BindingResult`로 Validation 실패를 직접 처리했다.  
+이후 공통 API 오류 응답을 도입하면서 다음과 같은 전역 처리 방식으로 전환했다.
 
-댓글 작성과 수정 요청에서 validation 오류가 발생하면 서비스를 호출하지 않고 다음 형식의 응답을 반환한다.
+- `CommentApiController`에서 `BindingResult`와 오류 응답 생성 코드 제거
+- `MethodArgumentNotValidException`을 `ApiExceptionHandler`에서 처리
+- Validation 실패에 `400 Bad Request`와 `VALIDATION_ERROR` 적용
+- 다른 API 오류와 동일한 `{code, message}` 응답 형식 적용
 
-```text
-HTTP 400 Bad Request
-Content-Type: application/json
+구체적인 오류 응답 명세는 [API Specification](./api-specification.md)에서 관리한다.
 
-{
-    "message": "validation 오류 메시지"
-}
-```
+#### 오류 메시지 선택
 
-`content` 필드에 등록된 오류가 있으면, DTO의 validation 메시지를 응답에 사용한다.  
-사용할 수 있는 필드 오류 메시지가 없으면, `입력값이 올바르지 않습니다.`라는 기본 메시지를 반환한다.  
-댓글 작성과 수정에 공통으로 필요한 오류 메시지 추출은 `CommentApiController`의 별도 메서드로 분리하여 사용한다.
+- 검증 오류 중 첫 번째 오류의 메시지를 사용
+- 여러 오류가 발생해도 하나의 메시지만 반환
+- 특정 필드나 메시지의 우선순위는 보장하지 않음
+- 메시지가 없거나 공백이면 `VALIDATION_ERROR`의 기본 메시지 사용
+- 검증 오류가 존재하지 않는 예외적인 경우에도 기본 메시지 사용
 
-클라이언트는 validation 실패로 `400 Bad Request` 응답을 받으면, JSON 응답의 `message`를 읽어 해당 댓글 작성·수정 Form의 오류 영역에 표시한다.
+기본 메시지는 `입력값이 올바르지 않습니다.`이다.
 
-향후 validation을 적용하는 API가 여러 Controller로 확장되어 동일한 처리 코드가 반복되면, `@RestControllerAdvice` 기반의 전역 API 예외 처리 구조로 전환한다.
+#### 클라이언트와 서버의 검증 책임
+
+클라이언트는 공백 입력을 먼저 확인하여 불필요한 요청을 줄이고, 사용자에게 빠르게 안내한다.  
+서버는 Bean Validation을 통해 요청의 유효성을 최종 검증하며,
+Validation 실패 시 Controller 메서드와 Service를 호출하지 않는다.
 
 ### 이유
 
-현재 validation이 필요한 JSON API는 댓글 작성과 수정 기능뿐이며, 모두 하나의 `CommentApiController` 안에서 처리하고 있다.  
-두 요청은 동일한 `content` 필드를 검증하고, 동일한 형태의 오류 응답을 사용하므로, 현재 단계에서는 Controller 내부의 공통 메서드만으로도 중복을 제한하면서 필요한 응답 형식을 명확하게 제어할 수 있다.
+- Validation은 JSON 요청 DTO를 사용하는 API에서 공통으로 발생할 수 있다.
+- Controller가 정상 요청 처리에 집중하고 오류 응답 생성을 전역 처리기로 분리할 수 있다.
+- 다른 API 오류와 동일한 응답 형식을 재사용할 수 있다.
+- `VALIDATION_ERROR`를 통해 같은 `400 Bad Request`인 `INVALID_REQUEST`와 구분할 수 있다.
+- Validation 대상 API가 늘어나도 공통 처리 구조를 재사용할 수 있다.
 
-또한 `BindingResult`를 통해 validation 실패를 Controller에서 직접 확인하면, 잘못된 요청이 서비스 계층으로 전달되는 것을 차단하고 클라이언트에 일관된 `400 Bad Request` 응답을 제공할 수 있다.
+### 결과 및 트레이드오프
 
-따라서 현재 규모에서 별도의 전역 API 오류 응답 구조를 먼저 도입하기보다, 실제 API가 확장되어 공통화의 필요성이 커지는 시점에 전역 예외 처리로 전환하는 것이 적절하다고 판단했다.
-
-이와 별도로, 클라이언트에서도 빈 내용 입력을 먼저 확인하여 불필요한 요청을 줄이고, 빠르게 사용자에게 안내하는 방식을 사용한다.
-
-다만 클라이언트 검증은 우회될 수 있으므로, 요청 데이터의 유효성을 최종적으로 보장하는 책임은 서버에 둔다.
-
-### 결과
-
-- 댓글 작성·수정 validation 실패 시 `400 Bad Request` 반환
-- validation 실패 응답을 `message` 필드를 가진 JSON 형식으로 통일
-- DTO에 정의한 필드별 validation 메시지 활용
-- 서버 validation 실패 시 서비스 계층 호출 차단
-- 클라이언트 사전 검증을 통한 불필요한 요청 감소
-- 클라이언트 사전 검증과 서버 최종 검증의 책임 구분
-- Controller 내부 공통 메서드를 통한 오류 처리 중복 감소
-- validation 대상 API 확장 시 전역 API 예외 처리로 전환 필요
+- `CommentApiController`의 Validation 오류 처리 코드 제거
+- `MethodArgumentNotValidException` 기반 공통 처리 적용
+- DTO에 정의된 메시지와 기본 메시지 fallback 지원
+- 클라이언트 사전 검증과 서버 최종 검증 책임 분리
+- 여러 Validation 오류가 발생해도 하나의 메시지만 제공
+- 특정 필드의 오류 우선순위를 보장하지 않음
+- 현재 응답에 필드명이 없으므로, 필드별 표시가 필요하면 응답 구조 확장 필요
 
 ---
 
@@ -1914,6 +1886,9 @@ Spring Data JPA는 `Page`와 `Pageable`을 통해 페이징 처리를 추상화�
 
 - [Database Design](./database-design.md)
   - 데이터베이스 스키마, 관계 및 ERD 정의
+
+- [API Specification](./api-specification.md)
+  - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세
 
 - [Project Progress](./project-progress.md)
   - 현재 프로젝트 진행 현황 및 개발 계획
