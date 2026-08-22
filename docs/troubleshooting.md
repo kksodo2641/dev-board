@@ -130,11 +130,11 @@ Method 'DELETE' is not supported.
 
 ### 환경에 따라 달라질 수 있는 관찰 결과
 
-`PATCH`와 `DELETE`의 최종 오류 본문이 JSON이었던 점과, 응답에 stack trace가 포함된 점은 이번 문제의 근본 원인이 아니다.
+`PATCH`와 `DELETE`의 최종 오류 본문이 JSON이었던 점과, 응답에 Stack Trace가 포함된 점은 이번 문제의 근본 원인이 아니다.
 
 - `405 Method Not Allowed` 오류는 Spring MVC에서 발생하고 Spring Boot의 기본 오류 처리기를 통해 JSON 응답으로 변환됐다.
-- 개발 환경에서는 DevTools의 오류 관련 기본 설정에 의해 `message`와 stack trace가 응답에 포함될 수 있다.
-- 오류 응답 형식과 내부 정보 노출 정책은 별도의 오류 응답 표준화 리팩터링에서 다룬다.
+- 개발 환경에서는 DevTools의 오류 관련 기본 설정에 의해 `message`와 Stack Trace가 응답에 포함될 수 있다.
+- 이후 API 오류 응답 표준화 리팩터링을 통해 공통 처리 대상의 오류 응답을 통일하고, 처리되지 않은 API 예외의 내부 정보가 클라이언트에 노출되지 않도록 개선했다.
 
 ### 해결 과정 및 설계 결정
 
@@ -197,33 +197,61 @@ window.location.pathname + window.location.search
 
 따라서 로그인 후에는 원래 게시글로 복귀만 시키고 댓글 변경 작업은 사용자가 다시 실행하도록 했다.
 
+#### API 인증 실패 응답의 후속 표준화
+
+빈 본문의 `401 Unauthorized` 응답으로 redirect 문제는 해결했지만,
+인증 실패 응답만 다른 API 오류와 형식이 다르다는 한계가 남았다.
+
+이후 `ApiErrorCode`와 `ApiErrorResponse` 기반의 공통 API 오류 응답을 도입하면서
+미인증 API 응답도 다음 형식으로 확장했다.
+
+```json
+{
+  "code": "LOGIN_REQUIRED",
+  "message": "로그인이 필요합니다."
+}
+```
+
+HTTP 상태는 기존과 같이 `401 Unauthorized`를 유지한다.
+
+클라이언트는 단순히 `401 Unauthorized`만 확인하지 않고,
+HTTP 상태와 `LOGIN_REQUIRED` 오류 코드를 함께 확인하여 로그인 필요 상황을 판단한다.
+
+댓글 조회·작성·수정·삭제 요청에 공통 API 응답 처리 함수를 적용했다.  
+서버가 반환한 오류 메시지를 우선 사용하고,
+JSON이 아닌 오류 응답이나 네트워크 실패에는 요청별 fallback 메시지를 표시한다.
+
+구체적인 오류 응답 명세는 [API Specification](./api-specification.md)에서 관리한다.
+
 ### 최종 해결 내용
 
-서버에서는 `LoginCheckInterceptor`가 미인증 요청의 유형을 판별해 다음과 같이 처리하도록 변경했다.
+서버에서는 `LoginCheckInterceptor`가 미인증 요청 유형에 따라 다음과 같이 처리한다.
 
-- SSR 요청은 기존과 같이 로그인 페이지로 redirect한다.
-- SSR 요청의 URI와 쿼리 스트링을 `redirectURL` 쿼리 파라미터의 값으로 보존한다.
-- `@RestController` 또는 `@ResponseBody` 기반 API 요청에는 `401 Unauthorized`를 반환한다.
-- 미인증 API 응답에는 별도의 오류 본문을 포함하지 않는다.
+- SSR 요청은 로그인 페이지로 redirect
+- SSR 요청의 URI와 쿼리 스트링을 로그인 후 복귀 URL로 보존
+- `@RestController` 또는 `@ResponseBody` 기반 API 요청에는 `401 Unauthorized` 반환
+- 미인증 API 응답에는 `LOGIN_REQUIRED` 코드와 메시지를 포함하는 JSON 반환
+- API 인증 실패 응답에도 공통 `ApiErrorCode`와 `ApiErrorResponse` 사용
 
-클라이언트에서는 댓글 작성·수정·삭제 요청의 응답을 공통 인증 만료 처리 함수로 검사한다.
+클라이언트에서는 댓글 API 요청의 응답을 공통 처리한다.
 
-- 응답 상태가 `401 Unauthorized`이면, 세션 만료 안내를 표시한다.
-- 현재 게시글 상세 페이지 주소를 `redirectURL` 쿼리 파라미터의 값으로 전달한다.
-- 로그인 페이지로 이동한다.
-- 인증 실패 여부를 호출부에 반환해, 입력 초기화와 댓글 목록 재조회 등의 성공 후 처리를 중단한다.
-- 로그인 후 중단된 댓글 요청을 자동 재실행하지 않는다.
+- `401 Unauthorized`와 `LOGIN_REQUIRED`가 함께 반환되면 세션 만료 상황으로 판단
+- 사용자에게 로그인 정보 만료 안내
+- 현재 게시글 상세 페이지 주소를 로그인 후 복귀 URL로 전달
+- 인증 실패 이후 입력 초기화와 댓글 목록 재조회 등 성공 처리 중단
+- 로그인 후 중단된 댓글 요청을 자동으로 재실행하지 않음
+- 일반 API 오류는 서버가 반환한 메시지 표시
+- JSON이 아닌 오류 응답 또는 네트워크 실패에는 요청별 fallback 메시지 표시
 
-변경 후의 요청 흐름은 다음과 같다.
+최종 요청 흐름은 다음과 같다.
 
 ```text
-댓글 작성·수정·삭제 요청
+댓글 변경 요청
 → LoginCheckInterceptor에서 미인증 API 요청 판별
-→ 빈 본문과 401 Unauthorized 응답
-→ 클라이언트에서 사용자에게 세션 만료 안내
-→ 현재 게시글 주소를 redirectURL 쿼리 파라미터로 전달
-→ 로그인 페이지로 이동
-→ 로그인 성공 후 원래 게시글로 복귀
+→ 401 Unauthorized와 LOGIN_REQUIRED JSON 응답
+→ 클라이언트에서 HTTP 상태와 오류 코드 확인
+→ 세션 만료 안내 후 로그인 페이지로 이동
+→ 로그인 성공 후 원래 게시글 상세 화면 복귀
 ```
 
 ### 테스트 및 재검증
@@ -240,7 +268,8 @@ window.location.pathname + window.location.search
 - `@RestController` 기반 API 요청 판별
 - 메서드 단위의 `@ResponseBody` 기반 API 요청 판별
 - 미인증 `POST`, `PATCH`, `DELETE` API 요청에 대한 `401 Unauthorized` 응답
-- 미인증 API 응답의 빈 본문
+- 미인증 API 응답의 `LOGIN_REQUIRED` 오류 코드 및 메시지
+- 미인증 API 응답의 JSON Content-Type과 UTF-8 문자 인코딩
 
 #### 브라우저 재검증
 
@@ -249,7 +278,7 @@ window.location.pathname + window.location.search
 
 댓글 작성·수정·삭제 요청에서 다음 동작을 모두 확인했다.
 
-- 각 요청이 redirect 대신 `401 Unauthorized` 응답을 받는다.
+- 각 요청이 redirect 대신 `401 Unauthorized`와 `LOGIN_REQUIRED` 응답을 받는다.
 - 세션 만료 안내가 표시된다.
 - 로그인 페이지로 이동한다.
 - 로그인 성공 후 원래 게시글 상세 페이지로 복귀한다.
@@ -257,6 +286,13 @@ window.location.pathname + window.location.search
 
 기존에 발생했던 `POST` 요청에서의 로그인 폼 HTML의 성공 응답 오인 및
 `PATCH`, `DELETE` 요청의 `405 Method Not Allowed` 오류도 더 이상 발생하지 않았다.
+
+후속 API 오류 처리 리팩터링에서는 다음 흐름도 추가로 확인했다.
+
+- Validation 및 도메인·권한 오류에 서버 메시지가 표시됨
+- JSON이 아닌 오류 응답에 요청별 fallback 메시지가 표시됨
+- 브라우저를 Offline 상태로 전환 시 네트워크 오류 대신 사용자 안내 메시지가 표시됨
+- 네트워크 복구 후 댓글 요청이 다시 정상적으로 처리됨
 
 ### 회고
 
@@ -266,12 +302,15 @@ window.location.pathname + window.location.search
 HTTP redirect는 브라우저 화면 전환에는 자연스럽지만,
 `fetch()`가 redirect를 자동으로 따라가는 환경에서는
 최초 응답의 인증 실패가 최종 응답 뒤에 숨겨질 수 있다.  
-따라서 API에서는 인증 실패를 `401 Unauthorized`로 명확하게 표현하고,
+따라서 API에서는 인증 실패를 `401 Unauthorized`와 `LOGIN_REQUIRED`로 명확하게 표현하고,
 화면 이동과 사용자 안내는 현재 화면의 상태를 알고 있는 클라이언트가 담당하도록 역할을 분리했다.
 
 또한 로그인 후 원래 화면으로 복귀하는 것과 중단된 변경 요청을 자동으로 재실행할지 여부는 별개의 정책임을 확인했다.  
 이번 구현에서는 안전성과 구현 복잡도를 고려해 화면 복귀까지만 지원하고,
 데이터 변경 요청은 사용자가 다시 실행하도록 결정했다.
+
+후속 API 오류 처리 리팩터링에서는 HTTP 상태가 오류의 표준적인 범주를 표현하고,
+애플리케이션 오류 코드는 클라이언트의 세부 동작을 결정하는 기준으로 사용할 수 있음을 확인했다.
 
 앞으로 AJAX 기반 기능을 추가할 때는 정상 응답과 일반적인 도메인 오류뿐 아니라,
 세션 만료와 같은 인증 경계 상황도 구현 및 브라우저 검증 범위에 포함한다.
@@ -294,3 +333,6 @@ HTTP redirect는 브라우저 화면 전환에는 자연스럽지만,
 
 - [Project Progress](./project-progress.md)
   - 현재 프로젝트 진행 현황 및 개발 계획
+
+- [API Specification](./api-specification.md)
+  - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세

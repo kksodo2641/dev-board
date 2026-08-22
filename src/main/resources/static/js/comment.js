@@ -2,7 +2,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // 댓글 목록 로딩
     loadComments();
 
-    // 대댓글 작성/수정 이벤트
     document.addEventListener("click", event => {
         const target = event.target;
         const classList = target.classList;
@@ -24,7 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 댓글 작성/수정 이벤트
     document.addEventListener("submit", event => {
         const target = event.target;
         const classList = target.classList;
@@ -48,11 +46,15 @@ async function loadComments() {
 
     const boardId = commentCard.dataset.boardId;
 
-    try {
-        const response = await fetch(`/boards/${boardId}/comments`);
+    const url = `/boards/${boardId}/comments`;
+    const fallbackMessage = "댓글을 불러오지 못했습니다.";
 
-        if (!response.ok) {
-            throw new Error("댓글 목록 조회에 실패했습니다.");
+    try {
+        const response = await fetchApi(url, fallbackMessage);
+        const success = await handleApiResponse(response, fallbackMessage);
+
+        if (!success) {
+            return;
         }
 
         const comments = await response.json();
@@ -63,12 +65,11 @@ async function loadComments() {
     } catch (error) {
         commentList.replaceChildren();
 
-        const errorMessage = document.createElement("div");
-        errorMessage.classList.add("comment-empty");
-        errorMessage.textContent = "댓글을 불러오지 못했습니다.";
+        const errorElement = document.createElement("div");
+        errorElement.classList.add("comment-empty");
+        errorElement.textContent = fallbackMessage;
 
-        commentList.appendChild(errorMessage);
-
+        commentList.appendChild(errorElement);
         console.error(error);
     }
 }
@@ -78,12 +79,12 @@ async function submitComment(event) {
 
     const commentForm = event.target;
     const textarea = commentForm.querySelector("#comment-content");
-    const error = commentForm.querySelector("#comment-error");
+    const errorElement = commentForm.querySelector("#comment-error");
 
     const content = textarea.value.trim();
 
     if (content.length === 0) {
-        error.textContent = "댓글 내용을 입력해주세요.";
+        errorElement.textContent = "댓글 내용을 입력해주세요.";
         textarea.focus(); // textarea로 사용자 커서 포커싱
         return;
     }
@@ -95,13 +96,13 @@ async function submitComment(event) {
         }
 
         textarea.value = "";
-        error.textContent = "";
+        errorElement.textContent = "";
 
         await loadComments();
 
-    } catch (exception) {
-        console.error(exception);
-        error.textContent = exception.message;
+    } catch (error) {
+        console.error(error);
+        errorElement.textContent = error.message;
     }
 }
 
@@ -111,13 +112,13 @@ async function submitReply(event) {
     const replyForm = event.target;
     const textarea = replyForm.querySelector("textarea[name='content']");
     const parentInput = replyForm.querySelector("input[name='parentId']");
-    const error = replyForm.querySelector(".reply-error");
+    const errorElement = replyForm.querySelector(".reply-error");
 
     const content = textarea.value.trim();
     const parentId = Number(parentInput.value);
 
     if (content.length === 0) {
-        error.textContent = "답글 내용을 입력해주세요.";
+        errorElement.textContent = "답글 내용을 입력해주세요.";
         textarea.focus();
         return;
     }
@@ -129,13 +130,13 @@ async function submitReply(event) {
         }
 
         textarea.value = "";
-        error.textContent = "";
+        errorElement.textContent = "";
 
         await loadComments();
 
-    } catch (exception) {
-        console.error(exception);
-        error.textContent = exception.message;
+    } catch (error) {
+        console.error(error);
+        errorElement.textContent = error.message;
     }
 }
 
@@ -144,13 +145,13 @@ async function submitEditComment(event) {
 
     const editForm = event.target;
     const textarea = editForm.querySelector(".comment-edit-textarea");
-    const error = editForm.querySelector(".edit-error");
+    const errorElement = editForm.querySelector(".edit-error");
 
     const commentId = Number(editForm.dataset.commentId);
     const content = textarea.value.trim();
 
     if (content.length === 0) {
-        error.textContent = "댓글 내용을 입력해주세요.";
+        errorElement.textContent = "댓글 내용을 입력해주세요.";
         textarea.focus();
         return;
     }
@@ -161,72 +162,10 @@ async function submitEditComment(event) {
             await loadComments();
         }
 
-    } catch (exception) {
-        console.error(exception);
-        error.textContent = exception.message;
+    } catch (error) {
+        console.error(error);
+        errorElement.textContent = error.message;
     }
-}
-
-async function writeComment(content, parentId) {
-    const commentCard = document.querySelector(".comment-card");
-    const boardId = commentCard.dataset.boardId;
-
-    const response = await fetch(
-        `/boards/${boardId}/comments`,
-        {
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                content: content,
-                parentId: parentId
-            })
-        }
-    );
-
-    if (handleUnauthorized(response)) {
-        return false;
-    }
-
-    if (response.ok) {
-        return true;
-    }
-
-    const errorResponse = await response.json();
-    throw new Error(errorResponse.message
-                        || "댓글 작성에 실패했습니다.");
-}
-
-async function updateComment(commentId, content) {
-    const response = await fetch(
-        `/comments/${commentId}`,
-        {
-            method: "PATCH",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                content: content
-            })
-        }
-    );
-
-    if (handleUnauthorized(response)) {
-        return false;
-    }
-
-    if (response.ok) {
-        return true;
-    }
-
-    const errorResponse = await response.json();
-    throw new Error(errorResponse.message
-                        || "댓글 수정에 실패했습니다.");
 }
 
 async function handleDeleteComment(button) {
@@ -244,31 +183,112 @@ async function handleDeleteComment(button) {
 
         await loadComments();
 
-    } catch (exception) {
-        console.error(exception);
-        alert(exception.message);
+    } catch (error) {
+        console.error(error);
+        alert(error.message);
     }
 }
 
+async function writeComment(content, parentId) {
+    const commentCard = document.querySelector(".comment-card");
+    const boardId = commentCard.dataset.boardId;
+
+    const url = `/boards/${boardId}/comments`;
+
+    const options = {
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            content: content,
+            parentId: parentId
+        })
+    };
+
+    const fallbackMessage = "댓글 작성에 실패했습니다.";
+
+    const response = await fetchApi(url, fallbackMessage, options);
+    return handleApiResponse(response, fallbackMessage);
+}
+
+async function updateComment(commentId, content) {
+    const url = `/comments/${commentId}`;
+
+    const options = {
+        method: "PATCH",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            content: content
+        })
+    };
+
+    const fallbackMessage = "댓글 수정에 실패했습니다.";
+
+    const response = await fetchApi(url, fallbackMessage, options);
+    return handleApiResponse(response, fallbackMessage);
+}
+
 async function deleteComment(commentId) {
-    const response = await fetch(
-        `/comments/${commentId}`,
-        {
-            method: "DELETE"
-        }
-    );
+    const url = `/comments/${commentId}`;
 
-    if (handleUnauthorized(response)) {
-        return false;
+    const options = {
+        method: "DELETE"
+    };
+
+    const fallbackMessage = "댓글 삭제에 실패했습니다.";
+
+    const response = await fetchApi(url, fallbackMessage, options);
+    return handleApiResponse(response, fallbackMessage);
+}
+
+async function fetchApi(url,
+                        fallbackMessage,
+                        options = {}) {
+    try {
+        return await fetch(url, options);
+
+    } catch {
+        throw new Error(fallbackMessage);
     }
+}
 
+async function handleApiResponse(response, fallbackMessage) {
     if (response.ok) {
         return true;
     }
 
-    const errorResponse = await response.json();
-    throw new Error(errorResponse.message
-                        || "댓글 삭제에 실패했습니다.");
+    let errorResponse;
+
+    try {
+        errorResponse = await response.json();
+    } catch {
+        throw new Error(fallbackMessage);
+    }
+
+    if (response.status === 401
+            && errorResponse?.code === "LOGIN_REQUIRED") {
+        redirectToLogin();
+        return false;
+    }
+
+    throw new Error(errorResponse?.message || fallbackMessage);
+}
+
+function redirectToLogin() {
+    alert("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
+
+    const redirectURL = window.location.pathname  // 현재 주소 (예: "/boards/15")
+                        + window.location.search; // 쿼리 스트링 (예: "?page=2")
+
+    // 로그인 페이지로 이동
+    window.location.href = `/members/login?redirectURL=${encodeURIComponent(redirectURL)}`;
 }
 
 function renderComments(comments) {
@@ -435,8 +455,8 @@ function createEditForm(comment) {
     textarea.value = comment.content;
     textarea.dataset.originalContent = comment.content;
 
-    const error = document.createElement("div");
-    error.classList.add(
+    const errorElement = document.createElement("div");
+    errorElement.classList.add(
         "error",
         "edit-error"
     );
@@ -465,7 +485,7 @@ function createEditForm(comment) {
     buttonGroup.appendChild(cancelButton);
 
     form.appendChild(textarea);
-    form.appendChild(error);
+    form.appendChild(errorElement);
     form.appendChild(buttonGroup);
 
     return form;
@@ -514,8 +534,8 @@ function createReplyForm(comment) {
     textarea.classList.add("reply-textarea");
     textarea.placeholder = "답글을 입력해주세요.";
 
-    const error = document.createElement("div");
-    error.classList.add("error", "reply-error");
+    const errorElement = document.createElement("div");
+    errorElement.classList.add("error", "reply-error");
 
     const buttonGroup = document.createElement("div");
     buttonGroup.classList.add("reply-button-group");
@@ -535,7 +555,7 @@ function createReplyForm(comment) {
 
     form.appendChild(parentInput);
     form.appendChild(textarea);
-    form.appendChild(error);
+    form.appendChild(errorElement);
     form.appendChild(buttonGroup);
 
     container.appendChild(target);
@@ -576,11 +596,11 @@ function closeReplyForm(button) {
 
 function hideReplyForm(formContainer) {
     const textarea = formContainer.querySelector("textarea");
-    const error = formContainer.querySelector(".reply-error");
+    const errorElement = formContainer.querySelector(".reply-error");
 
     formContainer.style.display = "none";
     textarea.value = "";
-    error.textContent = "";
+    errorElement.textContent = "";
 }
 
 function openEditForm(button) {
@@ -626,7 +646,7 @@ function hideEditForm(form) {
     const content = commentItem.querySelector(".comment-content");
     const footer = commentItem.querySelector(".comment-footer");
     const textarea = form.querySelector(".comment-edit-textarea");
-    const error = form.querySelector(".edit-error");
+    const errorElement = form.querySelector(".edit-error");
 
     form.style.display = "none";
     content.style.display = "";
@@ -636,7 +656,7 @@ function hideEditForm(form) {
     }
 
     textarea.value = textarea.dataset.originalContent;
-    error.textContent = "";
+    errorElement.textContent = "";
 }
 
 function formatDateTime(createdAt) {
@@ -650,19 +670,4 @@ function formatDateTime(createdAt) {
         minute: "2-digit",
         hour12: false
     });
-}
-
-function handleUnauthorized(response) {
-    if (response.status !== 401) {
-        return false;
-    }
-
-    alert("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
-
-    const redirectURL = window.location.pathname  // 현재 주소   (예: "/boards/15")
-                        + window.location.search; // 쿼리 스트링 (예: "?page=2")
-
-    // 로그인 페이지로 이동
-    window.location.href = `/members/login?redirectURL=${encodeURIComponent(redirectURL)}`;
-    return true;
 }

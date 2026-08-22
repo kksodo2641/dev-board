@@ -286,6 +286,9 @@ COMMENT.status : ACTIVE → DELETED
 - [Domain Design](./domain-design.md)
   - 도메인 모델 및 비즈니스 규칙 정의
 
+- [API Specification](./api-specification.md)
+  - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세
+
 - [Architecture Decisions](./architecture-decisions.md)
   - 주요 아키텍처 설계 의사결정 기록
 
