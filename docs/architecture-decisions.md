@@ -257,47 +257,122 @@ Presentation Layer가 Entity에 직접 의존하면 다음과 같은 문제가 �
 
 ### 배경
 
-초기 구현에서는 다음 계층들 모두 ACTIVE 회원 검증을 수행했다.
+로그인 세션에 회원 ID가 존재한다는 사실은
+로그인 당시 저장된 회원 식별 정보가 유지되고 있음을 의미한다.  
+그러나 세션의 회원 ID만으로 해당 회원이 현재도 유효하고
+`ACTIVE` 상태라는 사실까지 보장할 수는 없다.
 
-```text
-LoginCheckInterceptor
-LoginMemberIdArgumentResolver
-Controller
-Service
-```
+초기 구현에서는 다음 계층에서 `ACTIVE` 회원 검증을 각각 수행했다.
 
-즉, 동일한 검증 로직이 여러 계층에 중복되어 존재했다.
+- `LoginCheckInterceptor`
+- `LoginMemberIdArgumentResolver`
+- Controller
+- Service
 
-### 문제
+이로 인해 동일한 회원 상태 검증이 여러 계층에 중복되고,
+로그인 확인과 사용자 식별 및 회원 상태 검증의 책임 경계가 불명확해졌다.
 
-- 검증 로직 중복
-- 책임 경계 불명확
-- 정책 변경 시 수정 범위 증가
+여러 계층에서 `ACTIVE` 회원 검증을 수행하면 다음 문제가 발생한다.
 
-### 판단
+- 동일 회원의 상태 검증 로직 중복
+- 하나의 요청에 대해 반복적인 회원 조회 발생
+- 회원 상태 정책 변경 시 여러 계층 동시 수정 필요
+- Interceptor와 ArgumentResolver가 회원 도메인과 Repository에 의존
+- 웹 계층을 거치지 않고 Service 호출 시 `ACTIVE` 회원 정책 보장 불가
+- Controller마다 검증 여부가 달라질 경우 유스케이스별 정책의 일관성 깨짐
 
-ACTIVE 회원 여부는 인증 정책이 아니라, 비즈니스 정책에 가깝다.
+따라서 로그인 여부 확인과 로그인 회원 식별 및 비즈니스 상태 검증을 구분하고,
+모든 유스케이스에서 `ACTIVE` 회원 정책을 일관되게 보장할 수 있도록
+회원 상태 검증을 담당할 계층을 명확히 결정할 필요가 있었다.
+
+### 고려한 대안
+
+- **`LoginCheckInterceptor`에서 `ACTIVE` 회원 검증**
+  - 유효하지 않은 회원의 요청을 Controller 실행 전에 차단할 수 있지만,
+    Interceptor가 회원 도메인과 Repository에 의존하게 된다.
+  - 로그인 필수 요청마다 회원 DB 조회가 발생하며,
+    Service가 웹 계층 외부에서 호출되는 경우에는 같은 정책을 보장하지 못한다.
+
+- **`LoginMemberIdArgumentResolver`에서 `ACTIVE` 회원 검증**
+  - Controller에는 유효한 회원 ID만 전달할 수 있지만,
+    사용자 식별을 담당하는 Resolver가 회원 상태 검증까지 수행하게 된다.
+  - 모든 `@LoginMemberId` 파라미터에 암묵적인 DB 조회가 발생하고,
+    Service의 검증과 중복될 수 있다.
+
+- **Controller에서 `ACTIVE` 회원 검증**
+  - 요청별 검증 흐름을 명시적으로 구성할 수 있지만,
+    Controller마다 검증 코드가 반복되고 비즈니스 정책이 Presentation 계층에 분산된다.
+
+- **Service에서 `ACTIVE` 회원 검증**
+  - 실제 유스케이스를 수행하는 계층에서 회원 상태를 최종적으로 검증할 수 있다.
+  - 웹 Controller 외부에서 Service가 호출되더라도 같은 정책을 보장할 수 있다.
 
 ### 결정
 
-ACTIVE 회원 검증 책임을 Service 계층으로 집중시켰다.
+**`ACTIVE` 회원 검증 책임을 Service 계층에 둔다.**
 
-각 계층의 역할을 다음처럼 분리했다.
+각 계층의 책임을 다음과 같이 분리한다.
 
-- Interceptor
-  - 로그인 여부 확인
-- ArgumentResolver
-  - 사용자 식별
-- Service
-  - ACTIVE 회원 검증
-  - 비즈니스 규칙 처리
+```text
+LoginCheckInterceptor
+→ 세션에 로그인 회원 ID가 존재하는지 확인
 
-### 결과
+LoginMemberIdArgumentResolver
+→ 세션의 로그인 회원 ID를 Controller 파라미터로 전달
 
-- 인증 / 비즈니스 규칙 분리
-- 검증 로직 중복 제거
-- 책임 경계 명확화
-- 정책 변경 시, 수정 범위 최소화
+Controller
+→ 요청 데이터와 화면 모델을 구성하고 Service 호출
+
+Service
+→ 회원의 존재 및 ACTIVE 상태 검증
+→ 대상 리소스 상태와 권한 등 유스케이스 규칙 검증
+```
+
+Service는 회원 ID와 ACTIVE 상태를 조건으로 회원을 조회한다.
+
+```text
+- memberId 일치
+- status == ACTIVE
+```
+
+조건을 만족하는 회원이 없으면 `MemberNotFoundException`을 발생시킨다.
+
+공개 화면에서 로그인 여부만 표시하는 경우에는 세션의 로그인 회원 ID 존재 여부를 사용한다.  
+이 과정에서 Controller가 `MemberRepository`를 직접 사용하여 `ACTIVE` 회원을 조회하지 않는다.
+
+회원의 역할이나 실제 작업 수행 가능 여부를 판단해야 하는 경우에는
+Service가 `ACTIVE` 회원을 조회한 뒤 처리한다.
+
+### 이유
+
+회원의 존재 및 `ACTIVE` 상태는
+현재 회원이 해당 유스케이스를 수행할 수 있는지를 결정하는 비즈니스 규칙이다.
+
+Service에서 `ACTIVE` 회원을 검증하면 다음 규칙을 각 유스케이스의 불변식으로 보장할 수 있다.
+
+- 게시글을 작성·수정·삭제하는 회원은 `ACTIVE` 상태여야 한다.
+- 댓글을 작성·수정·삭제하는 회원은 `ACTIVE` 상태여야 한다.
+- 마이페이지를 조회하거나 회원정보를 수정, 탈퇴하는 회원은 `ACTIVE` 상태여야 한다.
+- 관리자 역할과 요청 수행 권한을 판단하는 회원은 `ACTIVE` 상태여야 한다.
+
+Service가 웹 Controller 이외의 경로에서 호출되더라도 같은 규칙이 적용된다.
+
+Interceptor와 ArgumentResolver는 회원 Repository에 의존하지 않고,
+로그인 확인과 사용자 식별이라는 웹 요청 처리 책임에 집중할 수 있다.
+
+### 결과 및 트레이드오프
+
+- `ACTIVE` 회원 검증 책임을 Service 계층에 집중
+- 로그인 확인, 사용자 식별 및 비즈니스 상태 검증의 책임 분리
+- Interceptor와 ArgumentResolver의 회원 Repository 의존 제거
+- Controller의 회원 상태 검증 및 `MemberRepository` 직접 조회 제거
+- 웹 Controller 외부에서 Service가 호출되더라도 `ACTIVE` 회원 정책 보장
+- 회원 상태 정책 변경 시 Service 계층을 중심으로 수정 가능
+- 각 도메인 Service에 `findActiveMemberElseThrow()`와 유사한 내부 조회 코드 일부 반복
+- 공개 화면에서는 세션 회원 ID의 존재 여부만으로 로그인 상태를 표시하므로,
+  세션과 DB의 회원 상태가 일시적으로 불일치할 수 있음
+- Service에서 유효하지 않은 세션 회원 발견 시의
+  세션 정리 및 SSR/API 응답 정책은 별도 예외 처리 정책에서 추가 검토 필요
 
 ---
 
@@ -305,58 +380,265 @@ ACTIVE 회원 검증 책임을 Service 계층으로 집중시켰다.
 
 ### 배경
 
-초기 구현에서는 Controller마다 로그인 여부를 직접 검사했다.
+인증되지 않은 사용자의 로그인 필수 요청은
+Controller의 요청 처리 로직에 도달하기 전에 차단되어야 한다.
 
-### 문제
+초기 구현에서는 각 Controller가 세션에 로그인 회원 ID가 존재하는지 직접 확인하고,
+회원 ID가 없으면 로그인 화면으로 이동시켰다.
 
-- 중복 코드 증가
-- 인증 정책 분산
-- Controller 비대화
+이 방식에서는 로그인 필수 요청마다 동일한 검사 코드가 반복되었다.  
+또한 새로운 요청을 추가할 때 로그인 검사가 누락되거나,
+미인증 요청의 처리 방식이 Controller마다 달라질 수 있었다.
+
+Controller가 요청 데이터와 화면 모델 구성 및 Service 호출뿐 아니라,
+로그인 여부 판별과 미인증 요청 차단까지 담당하면서 책임도 증가했다.
+
+따라서 로그인 필수 요청이 Controller에 도달하기 전에 로그인 여부를 공통으로 확인하고,
+미인증 요청을 일관된 방식으로 차단할 구조를 도입할 필요가 있었다.
+
+### 고려한 대안
+
+- **Controller에서 로그인 여부 확인**
+  - 별도의 공통 구성 없이 각 요청에서 로그인 여부를 명시적으로 확인할 수 있다.
+  - 그러나 Controller마다 동일한 검사 코드가 반복되고,
+    새로운 로그인 필수 요청을 추가할 때 검사가 누락될 수 있다.
+  - 미인증 요청의 처리 방식이 Controller마다 달라지면서 로그인 정책이 분산될 수 있다.
+
+- **`LoginCheckInterceptor`에서 로그인 여부 확인**
+  - Controller가 실행되기 전에 로그인 여부를 공통으로 확인하고 미인증 요청을 차단할 수 있다.
+  - 로그인 검사와 미인증 처리 정책을 한곳에서 관리할 수 있지만,
+    로그인 필수 요청과 공개 요청의 적용 범위에 대한 지속적인 관리가 필요하다.
 
 ### 결정
 
-로그인 검증 책임을 LoginCheckInterceptor로 이동시켰다.
+**로그인 필수 요청의 로그인 여부를 `LoginCheckInterceptor`에서 확인한다.**
 
-### 결과
+`LoginCheckInterceptor`는 세션에 로그인 회원 ID가 존재하는지만 확인한다.
 
-- 인증 정책 일원화
-- Controller 단순화
-- 유지보수성 향상
+```text
+세션에 로그인 회원 ID 존재
+→ 요청 처리 계속
+
+세션에 로그인 회원 ID 누락
+→ 미인증 요청으로 처리
+```
+
+로그인 필수 요청에는 `LoginCheckInterceptor`를 적용하고,
+비회원 접근이 허용된 공개 요청은 로그인 여부와 관계없이 접근 가능하도록 구성한다.
+
+미인증 요청은 Controller가 실행되기 전에 차단한다.
+
+미인증 요청의 응답은 SSR 요청과 API 요청을 구분하여 처리하며,
+구체적인 정책은 `AD-036. SSR 요청과 API 요청의 미인증 처리 정책 분리`를 따른다.
+
+SSR 요청에서 로그인 후 기존 화면으로 복귀시키는 정책은
+`AD-006. 로그인 후 원래 요청 페이지 복귀`를 따른다.
+
+`LoginCheckInterceptor`는 회원 Repository나 Service에 의존하지 않으며,
+회원의 존재 여부와 `ACTIVE` 상태를 DB에서 검증하지 않는다.
+
+회원의 존재 및 `ACTIVE` 상태는 비즈니스 유스케이스 수행 가능 여부에 관한 규칙이므로,
+`AD-003. ACTIVE 회원 검증 책임을 Service 계층으로 집중`에 따라 Service가 검증한다.
+
+이후 도입한 `LoginMemberIdArgumentResolver`는
+`LoginCheckInterceptor`를 통과한 로그인 필수 요청에는
+로그인 회원 ID가 존재한다는 조건을 전제로 동작한다.
+
+따라서 Interceptor를 통과하여 ArgumentResolver에 도달한 로그인 필수 요청에는
+로그인 회원 ID가 반드시 존재해야 한다.  
+구체적인 처리 계약은 `AD-005. @LoginMemberId ArgumentResolver 도입`을 따른다.
+
+### 이유
+
+로그인 여부를 확인하고 미인증 요청을 차단하는 작업은
+특정 유스케이스의 비즈니스 규칙이 아니라,
+여러 로그인 필수 요청에 공통으로 적용되는 웹 요청 처리 책임이다.
+
+Interceptor에서 로그인 여부를 확인하면 Controller 실행 이전에
+미인증 요청을 공통으로 차단할 수 있다.
+이를 통해 Controller는 요청 데이터와 화면 모델 구성 및 Service 호출 등의
+정상 요청 처리에 집중할 수 있다.
+
+또한 Interceptor는 세션의 로그인 회원 ID 존재 여부만 확인하므로
+로그인 검사 과정에서 추가 DB 조회가 발생하지 않는다.
+
+회원의 실제 존재 여부와 `ACTIVE` 상태는 Service가 검증하도록 분리하여,
+로그인 확인과 비즈니스 상태 검증의 책임을 명확하게 유지할 수 있다.
+
+### 결과 및 트레이드오프
+
+- 로그인 필수 요청의 로그인 검사 정책을 `LoginCheckInterceptor`로 일원화
+- Controller의 반복적인 로그인 검사 코드 제거
+- Controller 실행 전 미인증 요청 차단
+- Controller가 정상 요청 처리와 Service 호출에 집중
+- 로그인 검사 과정에서 회원 Repository 의존 및 추가 DB 조회 제거
+- 로그인 확인과 `ACTIVE` 회원 검증의 책임 분리
+- `LoginMemberIdArgumentResolver`의 `required = true` 계약을 위한 시스템 불변식 형성
+- SSR 요청과 API 요청에 적합한 미인증 응답 제공
+- 로그인 필수 요청과 공개 요청의 Interceptor 적용 범위 관리 필요
+- 새로운 요청 추가 시 로그인 필요 여부와 Interceptor 적용 범위를 함께 검토 필요
+- 세션에 로그인 회원 ID가 존재하더라도
+  실제 회원의 존재 여부와 `ACTIVE` 상태는 Service에서 최종 검증 필요
 
 ---
 
-## AD-005. LoginMemberId ArgumentResolver 도입
+## AD-005. @LoginMemberId ArgumentResolver 도입
 
 ### 배경
 
-Controller에서 HttpSession을 직접 사용하면, 인증 정보 접근 코드가 반복된다.
+인증 검사를 통과한 요청에서 Controller가 현재 로그인 회원을 식별하려면,
+세션에 저장된 로그인 회원 ID를 전달받아야 한다.
 
-### 결정
+로그인 필수 요청에서는 회원 ID가 반드시 필요하지만,
+비회원 접근이 허용된 공개 요청에서는 로그인한 경우에만 회원 ID를 선택적으로 사용한다.
 
-Controller에서 세션을 직접 다루지 않는다.  
-로그인 사용자 식별은 ArgumentResolver를 통해 수행한다.
-
-예시
+초기 구현에서는 Controller가 `HttpSession`이나 `@SessionAttribute`를 사용하여
+로그인 회원 ID를 직접 조회했다.
 
 ```java
-public String writeForm(@LoginMemberId Long memberId) {
+final HttpSession session = request.getSession(false);
+final Long loginMemberId = (Long) session.getAttribute(LOGIN_MEMBER_ID);
+```
+
+```java
+public String boardList(
+        final @SessionAttribute(name = LOGIN_MEMBER_ID,
+                                required = false) Long loginMemberId) {
 }
 ```
 
-### 추가 결정
+이 방식에서는 여러 Controller가 세션 속성명과 회원 ID 조회 방법을 알아야 했다.
 
-로그인 검증을 통과한 요청에서 사용자 ID를 찾을 수 없는 경우는, 정상 흐름에서 발생할 수 없는 상황으로 판단했다.
+또한 `HttpSession`과 `@SessionAttribute`가 혼용되어
+로그인 회원을 식별하는 방식이 Controller마다 달라질 수 있었다.
 
-따라서 해당 경우는 `IllegalStateException`을 발생시켜 시스템 오류로 간주한다.
+따라서 Controller가 세션 구조와 구체적인 조회 방법을 알지 않으면서도,
+로그인 회원 ID가 필수인지 선택 사항인지만 선언할 수 있도록
+회원 ID 조회와 Controller 파라미터 전달 방식을 공통화할 필요가 있었다.
 
-즉, 이는 시스템 불변식 위반으로 간주한다.
+### 고려한 대안
 
-### 결과
+- **Controller에서 `HttpSession` 직접 조회**
+  - 별도의 구성 없이 세션에 접근할 수 있지만,
+    세션 조회와 형 변환 코드가 Controller마다 반복된다.
+  - `LOGIN_MEMBER_ID` 속성명과 세션 내부 구조가 여러 Controller에 노출된다.
 
-- Controller의 세션 의존성 제거
-- Controller의 인증 관련 코드 제거
-- 인증 정보 접근 방식 통일
-- 시스템 불변식(Invariant) 보호
+- **`@SessionAttribute` 사용**
+  - Spring MVC가 세션 속성을 Controller 파라미터에 주입하므로
+    직접 조회 코드를 줄일 수 있다.
+  - 각 Controller가 세션 속성명을 알아야 하며,
+    로그인 필수 여부를 `required` 속성으로 반복해서 표현해야 한다.
+
+- **전용 ArgumentResolver 사용**
+  - Controller는 세션 속성명과 회원 ID 조회 방법을 알 필요 없이,
+    `@LoginMemberId`의 `required` 속성으로 로그인 회원 ID의 필수 여부를 선언할 수 있다.
+  - 로그인 필수 요청에서는 기본값인 `required = true`를 사용하고,
+    비회원 접근이 허용된 공개 요청에서는 `required = false`를 지정한다.
+  - 프로젝트 전용 어노테이션과 ArgumentResolver 구현 및 테스트를 별도로 관리해야 한다.
+
+### 결정
+
+**로그인 회원 ID 조회에 `@LoginMemberId`와 `LoginMemberIdArgumentResolver`를 사용한다.**
+
+로그인 필수 요청에는 기본값인 `required = true`를 사용한다.  
+
+```java
+public String writeForm(final @LoginMemberId Long loginMemberId) {
+}
+```
+
+로그인이 선택 사항인 공개 요청에서는 `required = false`를 사용한다.  
+이때 회원 ID가 `null`일 수 있음을 `@Nullable`로 함께 명시한다.
+
+```java
+public String boardList(
+        final @Nullable @LoginMemberId(required = false) Long loginMemberId) {
+}
+```
+
+Resolver는 다음 기준으로 로그인 회원 ID를 처리한다.
+
+```text
+세션에 로그인 회원 ID 존재
+→ 로그인 회원 ID 반환
+
+세션에 로그인 회원 ID가 없고, required = false
+→ null 반환
+
+세션에 로그인 회원 ID가 없고, required = true
+→ IllegalStateException
+```
+
+`@LoginMemberId(required = false)`는 비회원 접근이 허용된 다음 요청에 적용한다.
+
+- 홈 화면
+- 게시글 목록
+- 게시글 상세
+- 댓글 목록 API
+
+반면, 로그인 필수 요청은 `LoginCheckInterceptor`가 먼저 미인증 요청을 차단한다.  
+따라서 `LoginCheckInterceptor`를 통과하여 ArgumentResolver에 도달한 로그인 필수 요청에는 로그인 회원 ID가 반드시 존재해야 한다.  
+만약 로그인 회원 ID가 없다면 이를 시스템 불변식 위반으로 간주하여
+`IllegalStateException`을 발생시킨다.
+
+#### ArgumentResolver의 책임 범위
+
+`LoginMemberIdArgumentResolver`는 세션에 저장된 로그인 회원 ID를 조회하여
+Controller 파라미터로 전달하는 사용자 식별만 담당한다.  
+회원의 존재 여부나 `ACTIVE` 상태는 검증하지 않으며,
+`ACTIVE` 회원 검증은 `AD-003. ACTIVE 회원 검증 책임을 Service 계층으로 집중`에 따라 Service가 담당한다.
+
+#### HttpSession 직접 사용 범위
+
+ArgumentResolver 도입은 Controller의 모든 `HttpSession` 사용을 금지하는 것이 아니라,
+로그인 회원 ID를 조회하는 방식을 통일하기 위한 결정이다.
+
+세션의 인증 상태를 생성하거나 종료하는 생명주기 관리가 필요한 다음 경우에는
+`MemberController`가 제한적으로 `HttpSession`을 직접 사용한다.
+
+- 로그인 성공
+  - 로그인 회원 ID를 세션에 저장하여 인증 상태 생성
+- 로그아웃
+  - 현재 세션을 무효화하여 인증 상태 종료
+- 회원 탈퇴
+  - 탈퇴 처리가 완료된 후 현재 세션을 무효화하여 인증 상태 종료
+
+결과적으로 로그인 회원 ID 조회는 `LoginMemberIdArgumentResolver`가 담당하고,
+로그인·로그아웃·회원 탈퇴에 따른 세션 생명주기 관리는 `MemberController`가 담당한다.
+
+### 이유
+
+전용 ArgumentResolver를 사용하면 Controller는 세션 구조를 알지 않고도
+다음 의도를 선언할 수 있다.
+
+```text
+현재 요청은 로그인 회원 ID가 반드시 필요하다.
+현재 요청은 로그인 회원 ID가 선택 사항이다.
+```
+
+이때 세션 객체의 존재 여부, 세션 속성명과 형 변환은 Resolver 내부에 숨긴다.  
+로그인 회원 ID의 필수 여부는 `@LoginMemberId`의 `required` 속성으로 표현하므로,
+Controller 메서드 선언만으로 해당 파라미터의 계약을 확인할 수 있다.
+
+또한 Resolver는 회원 Repository나 Service에 의존하지 않으므로
+사용자 식별 과정에서 추가 DB 조회가 발생하지 않는다.  
+이를 통해 로그인 회원 식별과 `ACTIVE` 회원 검증의 책임도 분리할 수 있다.
+
+### 결과 및 트레이드오프
+
+- Controller의 로그인 회원 ID 조회 방식을 `@LoginMemberId`로 통일
+- 로그인 회원 ID 조회를 위한 Controller의 `LOGIN_MEMBER_ID`, `@SessionAttribute` 직접 의존 제거
+- 로그인 필수 요청과 선택적 로그인 요청의 계약을 파라미터에 명시
+- 공개 요청에서 로그인하지 않은 사용자를 `null`로 일관되게 표현
+- Controller의 세션 조회 및 형 변환 코드 제거
+- 사용자 식별과 `ACTIVE` 회원 검증 책임 분리
+- 로그인 회원 ID 조회 과정에서 추가 DB 조회가 발생하지 않음
+- ArgumentResolver에 도달한 로그인 필수 요청에 로그인 회원 ID 누락 시,
+  `IllegalStateException`을 발생시켜 시스템 불변식 위반을 빠르게 감지
+- 프로젝트 전용 어노테이션과 ArgumentResolver 구현 및 테스트 관리 필요
+- Controller 메서드에서는 세션 조회 수행 사실이 직접 보이지 않음
+- 현재 Resolver는 `Long` 타입의 회원 ID만 지원하므로 향후 인증 객체 전체 필요 시,
+  별도의 인증 정보 모델 또는 Spring Security 도입 검토 필요
 
 ---
 
@@ -397,16 +679,16 @@ Dev Board는 Thymeleaf 기반 SSR 화면과 `fetch()` 기반 JSON API를 함께 
 
 ### 고려한 대안
 
-- 모든 미인증 요청을 redirect
+- **모든 미인증 요청을 redirect**
   - SSR에는 자연스럽지만 API의 인증 실패가 최종 응답 뒤에 가려질 수 있음
-- 모든 미인증 요청에 `401 Unauthorized` 반환
+- **모든 미인증 요청에 `401 Unauthorized` 반환**
   - API에는 적합하지만 SSR 화면에서 로그인 페이지로 자연스럽게 이동하지 않음
-- SSR과 API 요청을 구분하여 처리
+- **SSR과 API 요청을 구분하여 처리**
   - 요청 유형에 맞는 응답을 제공할 수 있지만, 서버와 클라이언트의 역할 분리가 필요
 
 ### 결정
 
-미인증 요청을 SSR과 API로 구분하여 다음 정책을 적용한다.
+**미인증 요청을 SSR과 API로 구분하여 다음 정책을 적용한다.**
 
 #### 요청 유형 판별
 
@@ -501,16 +783,16 @@ Dev Board는 Thymeleaf 기반 SSR 요청과 JSON 기반 API 요청을 함께 사
 
 ### 고려한 대안
 
-- 하나의 전역 예외 처리기 유지
+- **하나의 전역 예외 처리기 유지**
   - 클래스는 하나로 유지할 수 있지만, 요청 유형에 따른 응답 분기가 증가한다.
-- Controller별 예외 처리
+- **Controller별 예외 처리**
   - 각 요청에 맞게 처리할 수 있지만, 중복이 발생하고 오류 정책이 분산된다.
-- SSR과 API 전용 예외 처리기 분리
+- **SSR과 API 전용 예외 처리기 분리**
   - 클래스는 늘어나지만, 요청 유형별 책임과 확장 범위를 명확히 구분할 수 있다.
 
 ### 결정
 
-기존 `GlobalExceptionHandler`를 `SsrExceptionHandler`와 `ApiExceptionHandler`로 분리한다.
+**기존 `GlobalExceptionHandler`를 `SsrExceptionHandler`와 `ApiExceptionHandler`로 분리한다.**
 
 #### SSR 예외 처리
 
