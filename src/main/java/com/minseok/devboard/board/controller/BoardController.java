@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -23,10 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.SessionAttribute;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
 
 @Slf4j
 @Controller
@@ -79,7 +77,7 @@ public class BoardController {
      */
     @GetMapping("/{boardId}")
     public String detail(
-            final @SessionAttribute(name = LOGIN_MEMBER_ID, required = false) Long loginMemberId,
+            final @Nullable @LoginMemberId(required = false) Long loginMemberId,
             final @CookieValue(name = VIEWED_BOARDS_COOKIE, required = false) String viewedBoards,
             final @PathVariable Long boardId,
             final Model model,
@@ -115,7 +113,7 @@ public class BoardController {
      */
     @GetMapping
     public String boardList(
-            final @SessionAttribute(value = LOGIN_MEMBER_ID, required = false) Long loginMemberId,
+            final @Nullable @LoginMemberId(required = false) Long loginMemberId,
             final @RequestParam(defaultValue = "1") int page,
             final Model model) {
         
