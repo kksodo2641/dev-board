@@ -14,7 +14,7 @@
 
 ## 현재 브랜치
 
-`refactor/api-error-handling`
+`refactor/login-member-resolution`
 
 ---
 
@@ -83,6 +83,10 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 - `HttpSession` 기반 인증 구조 구현
 - `LoginCheckInterceptor` 구현
+- 로그인 확인과 `ACTIVE` 회원 검증 책임 분리
+  - `LoginCheckInterceptor`의 `MemberRepository` 의존 제거
+  - 세션의 로그인 회원 ID 존재 여부 확인으로 Interceptor 책임 제한
+  - 회원의 존재 여부와 `ACTIVE` 상태 검증 책임을 Service 계층으로 집중
 - 인터셉터 기반 로그인 검증 적용
 - Controller 인증 로직 제거
 - URL Encoding 기반 로그인 후 원래 요청 페이지 복귀 처리 적용
@@ -104,9 +108,12 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 - `@LoginMemberId` 어노테이션 구현
 - `LoginMemberIdArgumentResolver` 구현
-- Controller에서 로그인 사용자 ID 주입 방식 통일
-- Controller의 `HttpSession` 직접 의존 제거
-- 로그인 검증 이후 사용자 ID 누락 시 시스템 불변식 위반으로 처리
+- `LoginMemberIdArgumentResolver`의 `MemberRepository` 의존 제거
+- 세션의 로그인 회원 ID를 Controller 파라미터로 전달하는 책임으로 제한
+- Controller의 로그인 회원 ID 전달 방식을 `@LoginMemberId`로 통일
+- 공개 요청의 선택적 로그인 회원 ID 조회에 `@LoginMemberId(required = false)` 적용
+- 로그인 회원 ID 조회를 위한 Controller의 `HttpSession`, `@SessionAttribute` 직접 의존 제거
+- 로그인 검증 이후 로그인 회원 ID 누락 시 시스템 불변식 위반으로 처리
 
 ---
 
@@ -351,18 +358,22 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ## 진행 중
 
-API 오류 응답 표준화 리팩터링 관련 문서 최신화
+공개 Controller의 로그인 회원 ID 조회 방식 통일
 
 ### 현재 브랜치 작업 범위
 
-- API Specification 문서 추가
-- API 오류 응답 구조와 클라이언트 처리 정책 문서화
-- SSR/API 예외 처리 및 Validation 관련 Architecture Decisions 갱신
-- 세션 만료 Troubleshooting에 후속 오류 응답 표준화 과정 반영
+- 공개 Controller의 선택적 로그인 회원 ID 조회에
+  `@Nullable @LoginMemberId(required = false)` 적용
+- `HomeController`의 `@SessionAttribute` 직접 사용 제거
+- `HomeController`의 `MemberRepository` 직접 의존 및 `ACTIVE` 회원 조회 제거
+- 홈 화면의 로그인 여부를 세션 회원 ID 존재 여부로 판단
+- `BoardController`의 게시글 목록·상세 요청에서 `@SessionAttribute` 직접 사용 제거
+- Controller의 로그인 회원 ID 조회 방식을 `LoginMemberIdArgumentResolver`로 통일
+- 로그인 확인, 사용자 식별 및 `ACTIVE` 회원 검증의 기존 책임 구조 문서화
+- AD-003·004·005 보강 및 관련 ADR의 대안·결정 형식 통일
 - README, Domain Design 및 Project Progress 최신화
-- 프로젝트 문서 간 정책·용어·링크 일치 여부 검토
-- 전체 변경 사항 및 테스트 결과 최종 확인
-- 문서 변경 사항 커밋 및 Git 정리
+- 코드와 문서 변경 사항을 별도 커밋으로 정리
+- 변경 사항 최종 검증 및 Git 정리
 
 ---
 
@@ -412,7 +423,6 @@ API 오류 응답 표준화 리팩터링 관련 문서 최신화
 
 ##### Global / Member 검토 항목
 
-- `HomeController`가 `MemberRepository`와 `MemberStatus`에 직접 의존하는 구조를 Service 기반으로 개선
 - 로그인 `redirectURL`이 애플리케이션 내부 경로인지 검증하는 방안 검토
 - datasource 접속 정보를 환경변수 또는 외부 설정으로 분리
 - 향후 Spring Security 도입 시, 세션 기반 상태 변경 요청의 CSRF 방어 적용 검토

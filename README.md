@@ -210,27 +210,78 @@ View에는 화면에 필요한 데이터만 DTO로 전달하므로 불필요한 
 
 ## 인증 책임 분리
 
-로그인 여부 검증과 로그인 회원 식별을 Controller의 비즈니스 처리와 분리한다.
+로그인 여부 확인과 로그인 회원 식별 및 `ACTIVE` 회원 검증을
+Controller의 정상 요청 처리와 분리한다.
+
+각 구성요소와 계층의 책임은 다음과 같다.
+
+```text
+LoginCheckInterceptor
+→ 세션에 로그인 회원 ID가 존재하는지 확인
+→ 미인증 요청 차단
+
+LoginMemberIdArgumentResolver
+→ 세션의 로그인 회원 ID를 Controller 파라미터로 전달
+→ 로그인 회원 ID의 필수·선택 계약 처리
+
+Service
+→ 회원의 실제 존재 여부와 ACTIVE 상태 검증
+→ 대상 리소스 상태와 요청 수행 권한 검증
+```
 
 ### LoginCheckInterceptor
 
-로그인이 필요한 요청에 대해 Controller 실행 전, 세션의 로그인 여부를 검증한다.  
-이를 통해 각 Controller에서 로그인 검증 코드를 반복하지 않고,
-인증이 필요한 경로의 접근 정책을 한 곳에서 관리한다.
+로그인이 필요한 요청에 대해 Controller가 실행되기 전에
+세션에 로그인 회원 ID가 존재하는지 확인한다.  
+로그인 회원 ID가 없으면 미인증 요청으로 판단하여 처리한다.
+
+이를 통해 각 Controller에서 로그인 확인 코드를 반복하지 않고,
+인증이 필요한 요청의 접근 정책을 한곳에서 관리한다.  
+단, 세션의 로그인 회원 ID 존재 여부만 확인하며,
+회원의 실제 존재 여부나 `ACTIVE` 상태를 DB에서 검증하지 않는다.
 
 또한 실행 대상 Handler의 `@RestController`와 `@ResponseBody` 적용 여부를 기준으로
 SSR 요청과 API 요청을 구분한다.  
 미인증 SSR 요청은 로그인 페이지로의 `302 Found` redirect를 적용하고,
-미인증 API 요청은 `LOGIN_REQUIRED` 오류 정보를 담은 JSON을 `401 Unauthorized` 상태로 응답한다.
-
+미인증 API 요청은 `LOGIN_REQUIRED` 오류 정보를 담은 JSON을 `401 Unauthorized` 상태로 응답한다.  
 SSR 요청의 로그인 후 복귀 URL은 서버에서 구성하고,
 API 요청은 브라우저 주소창의 현재 페이지를 기준으로 클라이언트에서 복귀 URL을 구성한다.
 
-### @LoginMemberId ArgumentResolver
+### `@LoginMemberId` ArgumentResolver
 
-세션에 저장된 로그인 회원 ID를 해석하여 Controller의 파라미터에 주입한다.  
-Controller가 `HttpSession`의 구조와 조회 방식에 직접 의존하지 않으므로,
-사용자 식별 코드의 중복을 줄이고 요청 처리 로직에 집중할 수 있다.
+세션에 저장된 로그인 회원 ID를 조회하여 Controller 파라미터로 전달한다.
+
+```text
+로그인 회원 ID 존재
+→ 해당 회원 ID 전달
+
+로그인 회원 ID가 없고, required = false
+→ null 전달
+
+로그인 회원 ID가 없고, required = true
+→ IllegalStateException 발생
+```
+
+- 로그인 필수 요청에는 `@LoginMemberId`의 기본값인 `required = true`를 사용한다.
+- 비회원 접근이 허용된 공개 요청에는 `required = false`를 사용한다.
+- `LoginCheckInterceptor`를 통과한 로그인 필수 요청에 로그인 회원 ID가 없는 경우는
+  시스템 불변식 위반으로 간주하여 `IllegalStateException`을 발생시킨다.
+
+Controller는 세션 속성명과 회원 ID 조회 방법을 알 필요 없이,
+메서드 파라미터를 통해 로그인 회원 ID가 필수인지 선택 사항인지만 선언한다.
+
+`LoginMemberIdArgumentResolver`도 회원의 존재 여부나 `ACTIVE` 상태를 검증하지 않으므로,
+사용자 식별 과정에서 추가 DB 조회가 발생하지 않는다.
+
+### Service
+
+Controller로 전달된 회원 ID를 이용하여
+회원의 실제 존재 여부와 `ACTIVE` 상태를 최종적으로 검증한다.  
+대상 리소스의 상태와 회원의 역할 및 작성자 여부를 확인하여,
+현재 회원이 해당 유스케이스를 수행할 수 있는지 판단한다.
+
+이를 통해 로그인 확인과 사용자 식별은 웹 요청 처리 구성요소가 담당하고,
+회원 상태와 요청 수행 가능 여부에 관한 비즈니스 규칙은 Service가 담당한다.
 
 ---
 

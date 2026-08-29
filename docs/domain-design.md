@@ -480,23 +480,30 @@ Member와 Board 사이에 발생하는 다대다 관계는 BoardLike를 중간 �
 - 세션 기반 인증 방식을 사용한다.
 - 로그인 성공 시 세션을 생성하고, 세션에는 로그인 회원의 ID만 저장한다.
 - 로그아웃 시 세션을 무효화한다.
+- 회원탈퇴 시 세션을 무효화한다.
 - 탈퇴 회원은 로그인할 수 없다.
 
 ### 로그인 확인 및 사용자 식별
 
-- 로그인 필요 여부는 `LoginCheckInterceptor`에서 확인한다.
-- 로그인이 필요한 요청에서 세션에 로그인 회원 ID가 없으면 미인증 상태로 판단한다.
+- 로그인 필수 요청의 로그인 여부는 `LoginCheckInterceptor`에서 확인한다.
+- `LoginCheckInterceptor`는 세션에 로그인 회원 ID가 존재하는지만 확인한다.
+- 로그인 필수 요청에서 세션에 로그인 회원 ID가 없으면 미인증 상태로 판단한다.
   - 처음부터 로그인하지 않은 경우
   - 로그인 후 세션이 만료된 경우
 - 실행 대상 Handler의 `@RestController`와 `@ResponseBody` 적용 여부를 기준으로
-  `SSR 요청`과 `API 요청`을 구분한다.
-- 미인증 요청은 요청 유형에 따라 다르게 처리한다.
-  - `SSR 요청`: 로그인 페이지로 redirect하며, 로그인 성공 후 원래 요청 경로로 복귀할 수 있도록
-    서버에서 복귀 URL을 구성한다.
-  - `API 요청`: `LOGIN_REQUIRED` 코드와 메시지를 포함한 JSON을 `401 Unauthorized` 상태로 반환하며,
-    로그인 성공 후 브라우저의 현재 화면으로 복귀할 수 있도록 클라이언트에서 복귀 URL을 구성한다.
+  SSR 요청과 API 요청을 구분한다.
+  - SSR 요청
+    - 로그인 페이지로 redirect한다.
+    - 로그인 성공 후 원래 요청 경로로 복귀할 수 있도록 서버에서 복귀 URL을 구성한다.
+  - API 요청
+    - `LOGIN_REQUIRED` 코드와 메시지를 포함한 JSON을 `401 Unauthorized` 상태로 반환한다.
+    - 로그인 성공 후 브라우저의 현재 화면으로 복귀할 수 있도록
+      클라이언트에서 복귀 URL을 구성한다.
 - 로그인 회원 ID는 `LoginMemberIdArgumentResolver`를 통해 Controller에 전달한다.
-- 로그인 확인과 로그인 회원의 식별 책임을 분리한다.
+- `LoginCheckInterceptor`와 `LoginMemberIdArgumentResolver`는
+  회원의 존재 여부나 `ACTIVE` 상태를 검증하지 않는다.
+- 회원의 존재 여부와 `ACTIVE` 상태는 실제 유스케이스를 수행하는 Service에서 최종 검증한다.
+- 로그인 확인, 로그인 회원 식별 및 회원 상태 검증의 책임을 분리한다.
 
 ### 인가
 
