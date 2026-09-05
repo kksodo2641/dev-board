@@ -1,5 +1,6 @@
 package com.minseok.devboard.member.controller;
 
+import com.minseok.devboard.global.interceptor.PublicAccess;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import com.minseok.devboard.member.dto.request.LoginRequest;
 import com.minseok.devboard.member.dto.request.SignupRequest;
@@ -40,11 +41,13 @@ public class MemberController {
         return DISPLAY_GENDERS;
     }
     
+    @PublicAccess
     @GetMapping("/signup")
     public String signupForm(final @ModelAttribute SignupRequest signupRequest) {
         return resolveView("signup");
     }
     
+    @PublicAccess
     @PostMapping("/signup")
     public String signup(final @Valid @ModelAttribute SignupRequest signupRequest,
                          final BindingResult bindingResult) {
@@ -67,11 +70,13 @@ public class MemberController {
         return "redirect:/";
     }
     
+    @PublicAccess
     @GetMapping("/login")
     public String loginForm(final @ModelAttribute LoginRequest loginRequest) {
         return resolveView("login");
     }
     
+    @PublicAccess
     @PostMapping("/login")
     public String login(final @Valid @ModelAttribute LoginRequest loginRequest,
                         final BindingResult bindingResult,

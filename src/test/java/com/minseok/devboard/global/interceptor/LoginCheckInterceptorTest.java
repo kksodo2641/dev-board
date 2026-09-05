@@ -10,7 +10,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -19,6 +18,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.resource.ResourceHttpRequestHandler;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -41,35 +41,69 @@ class LoginCheckInterceptorTest {
         interceptor = new LoginCheckInterceptor(jsonMapper);
     }
     
-    @ParameterizedTest
-    @DisplayName("비로그인 사용자의 공개 GET 요청은 허용한다.")
-    @ValueSource(strings = {
-            "/boards",           // 게시글 목록
-            "/boards/1",         // 게시글 상세
-            "/boards/1/comments" // 댓글 목록
-    })
-    void allowPublicGetRequestWithoutLogin(final String requestURI) throws Exception {
+    @Test
+    @DisplayName("@PublicAccess가 붙은 요청은 비로그인 사용자에게도 허용한다.")
+    void allowPublicAccessRequestWithoutLogin() throws Exception {
         // given
-        final MockHttpServletRequest request = new MockHttpServletRequest("GET", requestURI);
+        final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/public");
         final MockHttpServletResponse response = new MockHttpServletResponse();
-        final Object dummyHandler = new Object();
+        final HandlerMethod handler = new HandlerMethod(new TestViewController(),
+                                                        "publicAccess");
         
         // when
-        final boolean result = interceptor.preHandle(request, response, dummyHandler);
+        final boolean result = interceptor.preHandle(request, response, handler);
         
         // then
         assertThat(result).isTrue();
     }
     
     @Test
+    @DisplayName("정적 리소스 요청은 로그인 여부와 관계없이 허용한다.")
+    void allowStaticResourceRequestWithoutLogin() throws Exception {
+        // given
+        final String requestURI = "/static-resource";
+        final MockHttpServletRequest request = new MockHttpServletRequest("GET", requestURI);
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        final ResourceHttpRequestHandler handler = new ResourceHttpRequestHandler();
+        
+        // when
+        final boolean result = interceptor.preHandle(request, response, handler);
+        
+        // then
+        assertThat(result).isTrue();
+    }
+    
+    @Test
+    @DisplayName("알 수 없는 Handler의 비로그인 요청은 로그인 페이지로 리다이렉트한다.")
+    void redirectUnknownHandlerRequestWithoutLogin() throws Exception {
+        // given
+        final String requestURI = "/unknown-handler";
+        final MockHttpServletRequest request = new MockHttpServletRequest("GET", requestURI);
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        final Object handler = new Object();
+        
+        // when
+        final boolean result = interceptor.preHandle(request, response, handler);
+        
+        // then
+        assertThat(result).isFalse();
+        
+        assertThat(response.getStatus())
+                .isEqualTo(HttpStatus.FOUND.value());
+        
+        assertThat(response.getRedirectedUrl())
+                .isEqualTo("/members/login?redirectURL=" + encode(requestURI, UTF_8));
+    }
+    
+    @Test
     @DisplayName("세션이 존재해도 로그인 회원 ID가 없으면 미인증 요청으로 처리한다.")
     void rejectProtectedRequestWithoutLoginMemberIdInSession() throws Exception {
         // given
-        final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/members/me");
+        final String requestURI = "/members/me";
+        final MockHttpServletRequest request = new MockHttpServletRequest("GET", requestURI);
         final MockHttpServletResponse response = new MockHttpServletResponse();
-        
-        final TestViewController controller = new TestViewController();
-        final HandlerMethod handler = new HandlerMethod(controller, "ssr");
+        final HandlerMethod handler = new HandlerMethod(new TestViewController(),
+                                                        "ssr");
         
         request.getSession(true);
         
@@ -224,6 +258,10 @@ class LoginCheckInterceptorTest {
     static class TestViewController {
         
         public void ssr() {
+        }
+        
+        @PublicAccess
+        public void publicAccess() {
         }
     }
     

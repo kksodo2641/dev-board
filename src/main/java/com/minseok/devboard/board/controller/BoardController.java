@@ -6,6 +6,7 @@ import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
 import com.minseok.devboard.board.dto.response.BoardUpdateResponse;
 import com.minseok.devboard.board.service.BoardService;
+import com.minseok.devboard.global.interceptor.PublicAccess;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import com.minseok.devboard.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
@@ -75,6 +76,7 @@ public class BoardController {
     /**
      * 게시글 상세
      */
+    @PublicAccess
     @GetMapping("/{boardId}")
     public String detail(
             final @Nullable @LoginMemberId(required = false) Long loginMemberId,
@@ -111,6 +113,7 @@ public class BoardController {
      * 게시글 목록(페이지) 조회
      * page(query param): 1-base
      */
+    @PublicAccess
     @GetMapping
     public String boardList(
             final @Nullable @LoginMemberId(required = false) Long loginMemberId,
