@@ -72,7 +72,10 @@ public class MemberController {
     
     @PublicAccess
     @GetMapping("/login")
-    public String loginForm(final @ModelAttribute LoginRequest loginRequest) {
+    public String loginForm(final @ModelAttribute LoginRequest loginRequest,
+                            final @RequestParam(defaultValue = "false") boolean sessionInvalidated,
+                            final Model model) {
+        model.addAttribute("sessionInvalidated", sessionInvalidated);
         return resolveView("login");
     }
     
