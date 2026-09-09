@@ -6,16 +6,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.resource.ResourceHttpRequestHandler;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
@@ -55,8 +56,7 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
             
         } else {
             // SSR 요청 -> 302 Found (로그인 페이지로 redirect)
-            response.sendRedirect("/members/login?redirectURL="
-                                          + getEncodedRedirectURL(request));
+            redirectToLogin(request, response);
         }
         
         return false;
@@ -102,16 +102,28 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
         return hasResponseBodyOnClass || hasResponseBodyOnMethod;
     }
     
-    private static String getEncodedRedirectURL(final HttpServletRequest request) {
+    private static void redirectToLogin(final HttpServletRequest request,
+                                        final HttpServletResponse response) throws IOException {
         assert (request != null);
+        assert (response != null);
         
-        final String requestURI = request.getRequestURI();
-        final String queryString = request.getQueryString();
+        final String loginPath = "/members/login";
         
-        final String redirectURL = (queryString == null)
-                                   ? requestURI
-                                   : requestURI + "?" + queryString;
-        
-        return URLEncoder.encode(redirectURL, StandardCharsets.UTF_8);
+        if (HttpMethod.GET.matches(request.getMethod())) {
+            final String requestURI = request.getRequestURI();
+            final String queryString = request.getQueryString();
+            final String redirectURL = (queryString == null)
+                                       ? requestURI
+                                       : requestURI + "?" + queryString;
+            
+            response.sendRedirect(
+                    UriComponentsBuilder.fromPath(loginPath)
+                                        .queryParam("redirectURL", "{redirectURL}")
+                                        .encode(StandardCharsets.UTF_8)
+                                        .buildAndExpand(redirectURL)
+                                        .toUriString());
+        } else {
+            response.sendRedirect(loginPath);
+        }
     }
 }

@@ -142,10 +142,10 @@ class LoginCheckInterceptorTest {
     }
     
     @Test
-    @DisplayName("비로그인 사용자의 보호된 SSR 요청은 로그인 페이지로 리다이렉트한다.")
-    void redirectProtectedSsrRequestWithoutLogin() throws Exception {
+    @DisplayName("비로그인 사용자의 보호된 SSR GET 요청은 로그인 페이지로 리다이렉트한다.")
+    void redirectProtectedSsrGetRequestWithoutLogin() throws Exception {
         // given
-        final String requestURI = "/boards/write";
+        final String requestURI = "/members/me";
         final MockHttpServletRequest request = new MockHttpServletRequest("GET", requestURI);
         final MockHttpServletResponse response = new MockHttpServletResponse();
         final HandlerMethod handler = new HandlerMethod(new TestViewController(), "ssr");
@@ -164,8 +164,30 @@ class LoginCheckInterceptorTest {
     }
     
     @Test
-    @DisplayName("리다이렉트 시 요청 URI와 쿼리 스트링을 보존한다.")
-    void preserveRequestURIAndQueryStringWhenRedirect() throws Exception {
+    @DisplayName("비로그인 사용자의 보호된 SSR 상태 변경 요청은 복귀 경로 없이 로그인 페이지로 리다이렉트한다.")
+    void redirectProtectedSsrMutationRequestWithoutRedirectURL() throws Exception {
+        // given
+        final String requestURI = "/members/me/withdraw";
+        final MockHttpServletRequest request = new MockHttpServletRequest("POST", requestURI);
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        final HandlerMethod handler = new HandlerMethod(new TestViewController(), "ssr");
+        
+        // when
+        final boolean result = interceptor.preHandle(request, response, handler);
+        
+        // then
+        assertThat(result).isFalse();
+        
+        assertThat(response.getStatus())
+                .isEqualTo(HttpServletResponse.SC_FOUND);
+        
+        assertThat(response.getRedirectedUrl())
+                .isEqualTo("/members/login");
+    }
+    
+    @Test
+    @DisplayName("비로그인 사용자의 보호된 SSR GET 요청은 리다이렉트 시 URI와 쿼리 스트링을 보존한다.")
+    void preserveRequestURIAndQueryStringWhenRedirectingSsrGetRequest() throws Exception {
         // given
         final String requestURI = "/members/me";
         final MockHttpServletRequest request = new MockHttpServletRequest("GET", requestURI);
