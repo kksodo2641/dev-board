@@ -253,129 +253,6 @@ Presentation Layer가 Entity에 직접 의존하면 다음과 같은 문제가 �
 
 # 2. 인증 및 사용자 식별
 
-## AD-003. ACTIVE 회원 검증 책임을 Service 계층으로 집중
-
-### 배경
-
-로그인 세션에 회원 ID가 존재한다는 사실은
-로그인 당시 저장된 회원 식별 정보가 유지되고 있음을 의미한다.  
-그러나 세션의 회원 ID만으로 해당 회원이 현재도 유효하고
-`ACTIVE` 상태라는 사실까지 보장할 수는 없다.
-
-초기 구현에서는 다음 계층에서 `ACTIVE` 회원 검증을 각각 수행했다.
-
-- `LoginCheckInterceptor`
-- `LoginMemberIdArgumentResolver`
-- Controller
-- Service
-
-이로 인해 동일한 회원 상태 검증이 여러 계층에 중복되고,
-로그인 확인과 사용자 식별 및 회원 상태 검증의 책임 경계가 불명확해졌다.
-
-여러 계층에서 `ACTIVE` 회원 검증을 수행하면 다음 문제가 발생한다.
-
-- 동일 회원의 상태 검증 로직 중복
-- 하나의 요청에 대해 반복적인 회원 조회 발생
-- 회원 상태 정책 변경 시 여러 계층 동시 수정 필요
-- Interceptor와 ArgumentResolver가 회원 도메인과 Repository에 의존
-- 웹 계층을 거치지 않고 Service 호출 시 `ACTIVE` 회원 정책 보장 불가
-- Controller마다 검증 여부가 달라질 경우 유스케이스별 정책의 일관성 깨짐
-
-따라서 로그인 여부 확인과 로그인 회원 식별 및 비즈니스 상태 검증을 구분하고,
-모든 유스케이스에서 `ACTIVE` 회원 정책을 일관되게 보장할 수 있도록
-회원 상태 검증을 담당할 계층을 명확히 결정할 필요가 있었다.
-
-### 고려한 대안
-
-- **`LoginCheckInterceptor`에서 `ACTIVE` 회원 검증**
-  - 유효하지 않은 회원의 요청을 Controller 실행 전에 차단할 수 있지만,
-    Interceptor가 회원 도메인과 Repository에 의존하게 된다.
-  - 로그인 필수 요청마다 회원 DB 조회가 발생하며,
-    Service가 웹 계층 외부에서 호출되는 경우에는 같은 정책을 보장하지 못한다.
-
-- **`LoginMemberIdArgumentResolver`에서 `ACTIVE` 회원 검증**
-  - Controller에는 유효한 회원 ID만 전달할 수 있지만,
-    사용자 식별을 담당하는 Resolver가 회원 상태 검증까지 수행하게 된다.
-  - 모든 `@LoginMemberId` 파라미터에 암묵적인 DB 조회가 발생하고,
-    Service의 검증과 중복될 수 있다.
-
-- **Controller에서 `ACTIVE` 회원 검증**
-  - 요청별 검증 흐름을 명시적으로 구성할 수 있지만,
-    Controller마다 검증 코드가 반복되고 비즈니스 정책이 Presentation 계층에 분산된다.
-
-- **Service에서 `ACTIVE` 회원 검증**
-  - 실제 유스케이스를 수행하는 계층에서 회원 상태를 최종적으로 검증할 수 있다.
-  - 웹 Controller 외부에서 Service가 호출되더라도 같은 정책을 보장할 수 있다.
-
-### 결정
-
-**`ACTIVE` 회원 검증 책임을 Service 계층에 둔다.**
-
-각 계층의 책임을 다음과 같이 분리한다.
-
-```text
-LoginCheckInterceptor
-→ 세션에 로그인 회원 ID가 존재하는지 확인
-
-LoginMemberIdArgumentResolver
-→ 세션의 로그인 회원 ID를 Controller 파라미터로 전달
-
-Controller
-→ 요청 데이터와 화면 모델을 구성하고 Service 호출
-
-Service
-→ 회원의 존재 및 ACTIVE 상태 검증
-→ 대상 리소스 상태와 권한 등 유스케이스 규칙 검증
-```
-
-Service는 회원 ID와 ACTIVE 상태를 조건으로 회원을 조회한다.
-
-```text
-- memberId 일치
-- status == ACTIVE
-```
-
-조건을 만족하는 회원이 없으면 `MemberNotFoundException`을 발생시킨다.
-
-공개 화면에서 로그인 여부만 표시하는 경우에는 세션의 로그인 회원 ID 존재 여부를 사용한다.  
-이 과정에서 Controller가 `MemberRepository`를 직접 사용하여 `ACTIVE` 회원을 조회하지 않는다.
-
-회원의 역할이나 실제 작업 수행 가능 여부를 판단해야 하는 경우에는
-Service가 `ACTIVE` 회원을 조회한 뒤 처리한다.
-
-### 이유
-
-회원의 존재 및 `ACTIVE` 상태는
-현재 회원이 해당 유스케이스를 수행할 수 있는지를 결정하는 비즈니스 규칙이다.
-
-Service에서 `ACTIVE` 회원을 검증하면 다음 규칙을 각 유스케이스의 불변식으로 보장할 수 있다.
-
-- 게시글을 작성·수정·삭제하는 회원은 `ACTIVE` 상태여야 한다.
-- 댓글을 작성·수정·삭제하는 회원은 `ACTIVE` 상태여야 한다.
-- 마이페이지를 조회하거나 회원정보를 수정, 탈퇴하는 회원은 `ACTIVE` 상태여야 한다.
-- 관리자 역할과 요청 수행 권한을 판단하는 회원은 `ACTIVE` 상태여야 한다.
-
-Service가 웹 Controller 이외의 경로에서 호출되더라도 같은 규칙이 적용된다.
-
-Interceptor와 ArgumentResolver는 회원 Repository에 의존하지 않고,
-로그인 확인과 사용자 식별이라는 웹 요청 처리 책임에 집중할 수 있다.
-
-### 결과 및 트레이드오프
-
-- `ACTIVE` 회원 검증 책임을 Service 계층에 집중
-- 로그인 확인, 사용자 식별 및 비즈니스 상태 검증의 책임 분리
-- Interceptor와 ArgumentResolver의 회원 Repository 의존 제거
-- Controller의 회원 상태 검증 및 `MemberRepository` 직접 조회 제거
-- 웹 Controller 외부에서 Service가 호출되더라도 `ACTIVE` 회원 정책 보장
-- 회원 상태 정책 변경 시 Service 계층을 중심으로 수정 가능
-- 각 도메인 Service에 `findActiveMemberElseThrow()`와 유사한 내부 조회 코드 일부 반복
-- 공개 화면에서는 세션 회원 ID의 존재 여부만으로 로그인 상태를 표시하므로,
-  세션과 DB의 회원 상태가 일시적으로 불일치할 수 있음
-- Service에서 유효하지 않은 세션 회원 발견 시의
-  세션 정리 및 SSR/API 응답 정책은 별도 예외 처리 정책에서 추가 검토 필요
-
----
-
 ## AD-004. LoginCheckInterceptor 도입
 
 ### 배경
@@ -406,8 +283,8 @@ Controller가 요청 데이터와 화면 모델 구성 및 Service 호출뿐 아
 
 - **`LoginCheckInterceptor`에서 로그인 여부 확인**
   - Controller가 실행되기 전에 로그인 여부를 공통으로 확인하고 미인증 요청을 차단할 수 있다.
-  - 로그인 검사와 미인증 처리 정책을 한곳에서 관리할 수 있지만,
-    로그인 필수 요청과 공개 요청의 적용 범위에 대한 지속적인 관리가 필요하다.
+  - 로그인 검사와 미인증 처리 정책을 한 곳에서 관리할 수 있지만,
+    새로운 요청을 추가할 때 공개 접근 허용 여부를 명시적으로 관리해야 한다.
 
 ### 결정
 
@@ -423,27 +300,21 @@ Controller가 요청 데이터와 화면 모델 구성 및 Service 호출뿐 아
 → 미인증 요청으로 처리
 ```
 
-로그인 필수 요청에는 `LoginCheckInterceptor`를 적용하고,
-비회원 접근이 허용된 공개 요청은 로그인 여부와 관계없이 접근 가능하도록 구성한다.
+`LoginCheckInterceptor`는 선택된 Handler를 기준으로 공개 요청과 로그인 필수 요청을 구분한다.  
+공개 접근 판별에 관한 구체적인 정책은 `AD-037. Handler 메타데이터 기반 공개 접근 정책`을 따른다.
 
-미인증 요청은 Controller가 실행되기 전에 차단한다.
-
-미인증 요청의 응답은 SSR 요청과 API 요청을 구분하여 처리하며,
-구체적인 정책은 `AD-036. SSR 요청과 API 요청의 미인증 처리 정책 분리`를 따른다.
-
-SSR 요청에서 로그인 후 기존 화면으로 복귀시키는 정책은
-`AD-006. 로그인 후 원래 요청 페이지 복귀`를 따른다.
+미인증 요청은 Controller가 실행되기 전에 차단하며, 응답은 SSR 요청과 API 요청을 구분하여 처리한다.  
+구체적인 정책은 `AD-036. SSR 요청과 API 요청의 미인증 처리 정책 분리`를 따른다.  
+미인증 요청의 로그인 후 화면 이동 정책은 `AD-006. 로그인 후 원래 요청 페이지 복귀`를 따른다.
 
 `LoginCheckInterceptor`는 회원 Repository나 Service에 의존하지 않으며,
-회원의 존재 여부와 `ACTIVE` 상태를 DB에서 검증하지 않는다.
-
-회원의 존재 및 `ACTIVE` 상태는 비즈니스 유스케이스 수행 가능 여부에 관한 규칙이므로,
+회원의 존재 여부와 `ACTIVE` 상태를 DB에서 검증하지 않는다.  
+이는 유스케이스 수행 가능 여부에 관한 규칙이므로,
 `AD-003. ACTIVE 회원 검증 책임을 Service 계층으로 집중`에 따라 Service가 검증한다.
 
 이후 도입한 `LoginMemberIdArgumentResolver`는
 `LoginCheckInterceptor`를 통과한 로그인 필수 요청에는
-로그인 회원 ID가 존재한다는 조건을 전제로 동작한다.
-
+로그인 회원 ID가 존재한다는 조건을 전제로 동작한다.  
 따라서 Interceptor를 통과하여 ArgumentResolver에 도달한 로그인 필수 요청에는
 로그인 회원 ID가 반드시 존재해야 한다.  
 구체적인 처리 계약은 `AD-005. @LoginMemberId ArgumentResolver 도입`을 따른다.
@@ -475,10 +346,364 @@ Interceptor에서 로그인 여부를 확인하면 Controller 실행 이전에
 - 로그인 확인과 `ACTIVE` 회원 검증의 책임 분리
 - `LoginMemberIdArgumentResolver`의 `required = true` 계약을 위한 시스템 불변식 형성
 - SSR 요청과 API 요청에 적합한 미인증 응답 제공
-- 로그인 필수 요청과 공개 요청의 Interceptor 적용 범위 관리 필요
-- 새로운 요청 추가 시 로그인 필요 여부와 Interceptor 적용 범위를 함께 검토 필요
-- 세션에 로그인 회원 ID가 존재하더라도
+- 새로운 공개 요청 추가 시, `@PublicAccess`로 명시적으로 공개 접근 선언 필요
+- 로그인 필수 요청이 Interceptor를 통과하더라도
   실제 회원의 존재 여부와 `ACTIVE` 상태는 Service에서 최종 검증 필요
+
+---
+
+## AD-037. Handler 메타데이터 기반 공개 접근 정책
+
+### 배경
+
+`LoginCheckInterceptor`는 로그인 필수 요청을 차단하는 동시에
+비회원에게 허용된 공개 요청을 구분해야 한다.
+
+기존에는 요청 메서드와 URI를 직접 비교하거나 아래 정규식을 검사하여 공개 요청을 판별했다.
+
+```java
+final boolean isBoardDetail = requestURI.matches("^/boards/\\d+$");
+```
+
+이 방식에서는 Controller 매핑이 공개되어 있어도
+URI 값이 예상한 형식과 다르면 보호된 요청으로 잘못 판단될 수 있다.  
+실제로 비회원의 `GET /boards/abc` 요청은 공개 게시글 상세 조회 메서드가 선택되지만,
+URI 정규식과 일치하지 않아 Path Variable 변환 오류가 발생하기 전에
+로그인 페이지로 리다이렉트됐다.
+
+요청을 처리할 Controller 매핑이 없는 URL도
+Spring Boot의 기본 정적 리소스 매핑에 의해 `ResourceHttpRequestHandler`가 선택된다.  
+그러나 기존 Interceptor가 먼저 요청을 차단하면서
+실제 리소스 탐색과 정상적인 `404 Not Found` 처리까지 도달하지 못했다.  
+해당 문제에 대한 상세한 재현 과정 및 Spring MVC 요청 처리 순서는
+[Troubleshooting](./troubleshooting.md)에서 관리한다.
+
+또한 공개 경로와 정적 리소스 경로를 URI 목록으로 관리하면,
+새로운 요청이나 리소스 경로가 추가될 때마다 Interceptor 설정도 함께 수정해야 한다.  
+따라서 경로 형식이 아닌 다른 방식의 공개 접근 판별 정책을 도입할 필요가 있었다.
+
+### 고려한 대안
+
+- **`WebConfig`의 Interceptor 제외 경로로 공개 요청 처리**
+  - 공개 요청에는 Interceptor가 실행되지 않지만, 경로가 여러 설정에 분산된다.
+  - 새로운 공개 요청과 정적 리소스 경로를 추가할 때 제외 목록도 함께 관리해야 한다.
+
+- **Interceptor 내부에서 요청 URI로 공개 여부 판별**
+  - 구현은 단순하지만 URI 구조와 인증 정책이 결합된다.
+  - Path Variable의 값이나 경로 변경이 공개 접근 판별에 영향을 줄 수 있다.
+
+- **선택된 Handler의 메타데이터로 공개 여부 판별**
+  - 공개 정책을 Controller 메서드에 직접 선언할 수 있다.
+  - URI 형식과 인증 정책을 분리할 수 있지만,
+    공개 메서드마다 명시적인 선언이 필요하다.
+
+### 결정
+
+**Controller 요청의 공개 여부를 선택된 `HandlerMethod`의 `@PublicAccess` 적용 여부로 판별한다.**
+
+#### 메서드 단위 공개 접근 선언
+
+`@PublicAccess`는 Controller 메서드에만 적용할 수 있도록 선언한다.
+
+```java
+@Documented
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface PublicAccess {
+}
+```
+
+비회원 접근을 허용하는 메서드에 `@PublicAccess`를 명시한다.
+
+```java
+@PublicAccess
+@GetMapping("/{boardId}")
+public String detail(...) {
+    // ...
+}
+```
+
+클래스 단위로 모든 요청을 한꺼번에 공개하지 않고, 실제 공개가 필요한 메서드만 선언한다.  
+`@PublicAccess`가 없는 Controller 메서드는 기본적으로 로그인이 필요한 요청으로 처리한다.
+
+`@PublicAccess`는 공개 접근 가능 여부만 표현하며, SSR과 API를 구분하지 않는다.  
+미인증 요청의 응답 방식은 기존 SSR/API 판별 정책인
+`AD-036. SSR 요청과 API 요청의 미인증 처리 정책 분리`를 따른다.
+
+#### 정적 리소스 요청 처리
+
+선택된 Handler가 `ResourceHttpRequestHandler`이면, 로그인 검사 없이 통과시킨다.
+
+```text
+실제 리소스가 존재하는 경우
+→ 정적 리소스 응답
+
+실제 리소스가 없는 경우
+→ NoResourceFoundException
+→ Spring MVC 기본 오류 처리에 위임
+→ 404 Not Found
+```
+
+단, 인증이 필요한 파일은 정적 리소스 디렉터리에 두지 않고,
+별도의 Controller와 Service에서 권한을 검증한 뒤 제공한다.
+
+#### 기본 비공개 및 알 수 없는 Handler 처리
+
+`@PublicAccess`가 없고, 로그인 회원 ID도 없는 요청은
+기본적으로 공개 요청으로 처리하지 않는다.  
+예상하지 못한 Handler 유형 역시, 자동으로 허용하지 않고
+기존 미인증 SSR 정책을 적용하는 fail-closed 방식을 사용한다.
+
+#### Interceptor 적용 범위
+
+`LoginCheckInterceptor`는 기본적으로 `/**`에 적용하고,
+공개 여부는 Interceptor 내부에서 일관되게 판단한다.
+
+다만, 최초 요청에서 이미 수행된 인증 검사가
+오류 디스패치 과정에서 반복되지 않도록 `/error`만 적용 대상에서 제외한다.
+
+```java
+@Override
+public void addInterceptors(final InterceptorRegistry registry) {
+    registry.addInterceptor(loginCheckInterceptor)
+            .order(0)
+            .addPathPatterns("/**")
+            .excludePathPatterns("/error");
+}
+```
+
+최종 판단 순서는 다음과 같다.
+
+```text
+정적 리소스 (ResourceHttpRequestHandler)
+→ 통과
+
+@PublicAccess가 적용된 컨트롤러 메서드 (HandlerMethod)
+→ 통과
+
+세션에 로그인 회원 ID가 존재하는 요청
+→ 통과
+
+그 밖의 미인증 요청
+→ AD-036의 SSR/API 정책에 따라 처리
+```
+
+### 이유
+
+- 공개 접근 정책을 실제 요청 처리 메서드에 명시할 수 있다.
+- URI 구조와 인증 정책의 결합을 줄일 수 있다.
+- Path Variable 변환과 정적 리소스 탐색 등
+  Spring MVC의 후속 처리 흐름을 인증 로직이 가로막지 않는다.
+- 새로운 정적 리소스 경로를 Interceptor 제외 목록에 반복해서 추가할 필요가 없다.
+- 별도로 공개하지 않은 요청과 알 수 없는 Handler를 기본적으로 보호할 수 있다.
+
+### 결과 및 트레이드오프
+
+- 비회원의 공개 Controller 요청을 `@PublicAccess` 기준으로 일관되게 허용
+- `@PublicAccess`가 적용된 요청의 잘못된 Path Variable은
+  인증 여부와 관계없이 정상적인 `400 Bad Request` 처리로 연결
+- 존재하지 않는 URL과 정적 리소스는 정상적인 `404 Not Found` 처리로 연결
+- 공개 Controller 및 정적 리소스 경로를
+  `WebConfig`의 Interceptor 적용 제외 목록에서 제거
+- `/error`만 Interceptor 적용 대상에서 제외하여 오류 디스패치의 중복 인증 검사 방지
+- 기본 비공개 및 fail-closed 정책 유지
+- 공개 메서드에 `@PublicAccess` 누락 시 비회원 요청이 차단되므로,
+  새로운 공개 요청 추가 시 애너테이션 적용과 관련 테스트를 함께 관리해야 함
+
+---
+
+## AD-036. SSR 요청과 API 요청의 미인증 처리 정책 분리
+
+### 배경
+
+Dev Board는 Thymeleaf 기반 SSR 화면과 `fetch()` 기반 JSON API를 함께 사용한다.
+
+기존에는 모든 미인증 요청을 로그인 페이지로 redirect했다.  
+그러나 API 요청에서 `fetch()`가 redirect를 자동으로 따라가면서 다음 문제가 발생했다.
+
+- 댓글 작성 요청이 로그인 Form의 `200 OK`를 성공 응답으로 오인
+- 댓글 수정·삭제 요청이 로그인 URL에서 `405 Method Not Allowed` 발생
+- 로그인 후 복귀 URL로 게시글 화면이 아닌 API 경로가 전달됨
+
+상세한 재현 과정 및 원인 분석은 [Troubleshooting](./troubleshooting.md)에서 관리한다.
+
+### 고려한 대안
+
+- **모든 미인증 요청을 redirect**
+  - SSR에는 자연스럽지만 API의 인증 실패가 최종 응답 뒤에 가려질 수 있음
+
+- **모든 미인증 요청에 `401 Unauthorized` 반환**
+  - API에는 적합하지만 SSR 화면에서 로그인 페이지로 자연스럽게 이동하지 않음
+
+- **SSR과 API 요청을 구분하여 처리**
+  - 요청 유형에 맞는 응답을 제공할 수 있지만, 서버와 클라이언트의 역할 분리가 필요
+
+### 결정
+
+**미인증 요청을 SSR과 API로 구분하여 다음 정책을 적용한다.**
+
+#### 요청 유형 판별
+
+현재 Handler의 `@ResponseBody` 적용 여부를 기준으로 API 요청을 판별한다.
+
+- `@RestController`가 적용된 Controller
+- 개별 Handler 메서드에 `@ResponseBody`가 적용된 Controller
+
+Handler가 `HandlerMethod`가 아니거나 `@ResponseBody`가 적용되지 않았다면
+SSR 요청으로 처리한다.
+
+#### SSR 요청
+
+미인증 SSR 요청에는 로그인 페이지로의 `302 Found`를 반환한다.
+
+GET 요청은 요청 URI와 쿼리 스트링으로 `redirectURL`을 구성하여
+로그인 성공 후 원래 요청 화면으로 복귀시킨다.  
+POST 등 상태 변경 요청에는 `redirectURL`을 전달하지 않으며,
+로그인 성공 후 기본 화면으로 이동하도록 한다.
+
+이를 통해 상태 변경 요청의 URL이 로그인 후 GET으로 요청되어 `405 Method Not Allowed`가 발생하거나
+의도하지 않은 화면으로 이동하는 것을 방지한다.  
+구체적인 복귀 정책은 `AD-006. 로그인 후 원래 요청 페이지 복귀`를 따른다.
+
+#### API 요청
+
+미인증 API 요청에는 redirect 대신 다음 응답을 반환한다.
+
+```text
+HTTP 401 Unauthorized
+ApiErrorCode LOGIN_REQUIRED
+```
+
+`LoginCheckInterceptor`는 Controller 실행 전에 요청을 차단하므로,
+`ApiExceptionHandler`가 아닌 Interceptor에서 JSON 응답을 직접 생성한다.
+
+응답은 다른 API 오류와 동일하게 `ApiErrorCode`와 `ApiErrorResponse`를 사용한다.  
+초기에는 빈 본문의 `401 Unauthorized`를 사용했지만,
+공통 API 오류 응답 도입 후 `LOGIN_REQUIRED` JSON 응답으로 확장했다.
+
+구체적인 응답 명세는 [API Specification](./api-specification.md)에서 관리한다.
+
+#### 클라이언트 처리
+
+댓글 클라이언트는 다음 조건을 모두 만족할 때 로그인 필요 상황으로 처리한다.
+
+```text
+HTTP 401 Unauthorized
++
+ApiErrorCode LOGIN_REQUIRED
+```
+
+조건을 만족하면 세션 만료를 안내하고,
+현재 화면의 경로와 쿼리 스트링을 `redirectURL`로 전달하여 로그인 페이지로 이동한다.
+
+로그인 후에는 원래 게시글 화면으로 복귀하지만,
+의도하지 않은 데이터 변경을 방지하기 위해
+중단된 댓글 요청을 자동으로 재실행하지 않는다.
+
+### 이유
+
+- SSR과 API는 인증 실패 이후 기대하는 동작이 서로 다르다.
+- API에 redirect를 반환하면 `fetch()`의 자동 추적으로 최초 인증 실패가 가려질 수 있다.
+- 현재 화면의 복귀 URL은 해당 화면을 알고 있는 클라이언트가 구성하는 것이 적절하다.
+- HTTP 상태와 오류 코드를 함께 사용하면 `message` 문자열에 의존하지 않고 인증 오류를 구분할 수 있다.
+- 중단된 변경 요청의 자동 재실행보다 사용자의 의도와 데이터 변경의 안전성을 우선한다.
+
+### 결과 및 트레이드오프
+
+- 미인증 SSR 요청은 로그인 페이지로 리다이렉트
+  - GET 요청에만 원래 화면 복귀 경로 제공
+  - 상태 변경 요청은 복귀 경로 없이 로그인 후 기본 화면으로 이동
+- API 요청은 `401 Unauthorized`와 `LOGIN_REQUIRED` JSON 응답 반환
+- 로그인 Form HTML의 성공 응답 오인 및 redirect 이후의 `405 Method Not Allowed` 문제 해결
+- 로그인 후 원래 게시글 상세 화면으로 복귀
+- 인증 실패 이후 입력 초기화와 댓글 목록 재조회 등의 성공 처리 중단
+- 댓글 API의 인증 실패 처리 흐름 공통화
+- API 클라이언트가 HTTP 상태와 오류 코드를 함께 해석해야 함
+- `LoginCheckInterceptor`가 JSON 응답 생성 책임을 일부 담당함
+- 중단된 변경 요청은 사용자가 로그인 후 다시 실행해야 함
+
+---
+
+## AD-006. 로그인 후 원래 요청 페이지 복귀
+
+### 배경
+
+비로그인 사용자가 로그인이 필요한 화면에 접근하면 로그인 페이지로 이동한다.  
+이때 로그인 성공 후 항상 홈으로 이동하면, 사용자가 원래 접근하려던 화면을 다시 찾아가야 하므로
+인증 흐름의 연속성이 떨어지며 UX가 저하될 수 있다.
+
+다만 로그인 이전 요청이 항상 화면 조회 요청인 것은 아니다.  
+상태 변경 요청은 HTTP 메서드와 요청 본문을 포함할 수 있으므로,
+URL만 저장했다가 로그인 후 이동하는 방식으로는 원래 요청을 그대로 복원할 수 없다.
+
+또한 세션에는 회원 ID가 존재하지만 실제 `ACTIVE` 회원을 찾을 수 없는 경우는
+일반적인 미인증 상태가 아니라, 세션과 애플리케이션의 상태가 일치하지 않는 상황이다.
+
+따라서 로그인 후 복귀가 적용되는 범위와 예외 상황을 구분할 필요가 있었다.
+
+### 고려한 대안
+
+- **로그인 성공 후 항상 홈으로 이동**
+  - 구현은 단순하나, 사용자가 원래 접근하려던 화면을 다시 찾아가야 한다.
+
+- **로그인 이전의 요청을 그대로 복원하여 재실행**
+  - 기존 작업을 이어갈 수 있지만, HTTP 메서드와 요청 본문을 별도로 보관해야 한다.
+  - 사용자의 확인 없이 상태 변경 요청이 다시 실행될 수 있다.
+
+- **조회 요청의 화면 URL만 보존하여 로그인 후 복귀**
+  - 로그인 전후의 화면 흐름을 이어가면서 상태 변경 요청의 잘못된 GET 복귀를 방지할 수 있다.
+  - 상태 변경 요청의 메서드와 본문은 보존하지 않으므로, 사용자가 작업을 다시 수행해야 한다.
+
+### 결정
+
+**미인증 SSR GET 요청과 API 클라이언트가 지정한 화면에만 `redirectURL`을 전달하며,
+중단된 상태 변경 요청은 자동으로 복귀하거나 재실행하지 않는다.**
+
+미인증 SSR GET 요청을 로그인 페이지로 리다이렉트할 때
+요청 URI와 쿼리 스트링으로 `redirectURL`을 구성한다.  
+`redirectURL`에는 URL 인코딩을 적용하며, 로그인 성공 후 원래 요청 화면으로 복귀한다.
+
+POST 등 상태 변경 요청에는 `redirectURL`을 전달하지 않는다.  
+로그인 성공 후 기본 화면으로 이동하며, 중단된 작업은 사용자가 다시 수행한다.
+
+```text
+미인증 SSR GET 요청
+→ 원래 요청 화면 경로를 redirectURL로 전달
+→ 로그인 성공
+→ 원래 요청 화면 복귀
+
+미인증 SSR 상태 변경 요청
+→ redirectURL 없이 로그인 페이지로 이동
+→ 로그인 성공
+→ 기본 화면으로 이동
+→ 사용자가 작업을 다시 수행
+```
+
+단, API 요청은 서버에서 로그인 페이지로 직접 리다이렉트하지 않는다.  
+인증 실패 응답을 받은 클라이언트가 사용자가 머물던 SSR 화면을 `redirectURL`로 전달하며,
+중단된 API 요청은 자동으로 재실행하지 않는다.  
+구체적인 미인증 API 처리 정책은 `AD-036. SSR 요청과 API 요청의 미인증 처리 정책 분리`를 따른다.
+
+세션의 인증 정보와 애플리케이션 상태가 일치하지 않아 기존 세션을 무효화한 경우에는
+원래 요청 URL을 보존하거나 로그인 성공 후 자동으로 복귀시키지 않는다.  
+불일치가 발생했던 요청을 다시 이어가기보다, 새로운 로그인 상태에서 사용자가 요청을 다시 선택하도록 한다.  
+해당 세션 복구 정책은 `AD-038. SSR 예외 및 오류 화면 처리 정책`을 따른다.
+
+### 이유
+
+- 로그인 성공 후 사용자가 원래 접근하려던 화면으로 자연스럽게 복귀할 수 있다.
+- 요청 자체가 아니라, 화면 경로만 보존하여 상태 변경 요청의 자동 재실행을 방지할 수 있다.
+- API 인증 실패 시 API 경로가 아닌, 사용자가 머물던 화면으로 복귀할 수 있다.
+- 세션과 애플리케이션 상태가 불일치한 경우에는 기존 요청 흐름을 이어가지 않고 안전하게 초기화한다.
+
+### 결과 및 트레이드오프
+
+- 미인증 사용자의 로그인 전후 화면 흐름 유지
+- API 인증 실패는 클라이언트가 지정한 SSR 화면으로 복귀 가능
+- SSR GET 요청은 쿼리 스트링을 포함한 원래 요청 화면으로 복귀 가능
+- SSR 상태 변경 요청은 복귀 경로를 전달하지 않음으로써 잘못된 GET 요청 방지
+- 중단된 상태 변경 요청은 로그인 후 사용자가 다시 수행해야 함
+- 유효하지 않은 로그인 세션을 무효화한 경우에는 원래 화면 복귀를 제공하지 않음
 
 ---
 
@@ -642,127 +867,126 @@ Controller 메서드 선언만으로 해당 파라미터의 계약을 확인할 
 
 ---
 
-## AD-006. 로그인 후 원래 요청 페이지 복귀
+## AD-003. ACTIVE 회원 검증 책임을 Service 계층으로 집중
 
 ### 배경
 
-비로그인 사용자가 인증이 필요한 SSR 페이지에 접근하려 하면, 로그인 화면으로 이동한다.  
-로그인 성공 후 원했던 페이지로 다시 이동하지 못하면 사용자 경험이 저하된다.
+로그인 세션에 회원 ID가 존재한다는 사실은
+로그인 당시 저장된 회원 식별 정보가 유지되고 있음을 의미한다.  
+그러나 세션의 회원 ID만으로 해당 회원이 현재도 유효하고
+`ACTIVE` 상태라는 사실까지 보장할 수는 없다.
 
-### 결정
+초기 구현에서는 다음 계층에서 `ACTIVE` 회원 검증을 각각 수행했다.
 
-미인증 SSR 요청을 로그인 페이지로 redirect할 때, 원래 요청 URL을 `redirectURL` 쿼리 파라미터의 값으로 전달한다.  
-로그인 성공 후 해당 URL로 복귀시킨다.  
-원래 요청 URL에는 쿼리 스트링을 포함하며, `redirectURL`에는 URL Encoding을 적용한다.
+- `LoginCheckInterceptor`
+- `LoginMemberIdArgumentResolver`
+- Controller
+- Service
 
-### 결과
+이로 인해 동일한 회원 상태 검증이 여러 계층에 중복되고,
+로그인 확인과 사용자 식별 및 회원 상태 검증의 책임 경계가 불명확해졌다.
 
-- 사용자 경험 향상
-- 인증 흐름 자연화
+여러 계층에서 `ACTIVE` 회원 검증을 수행하면 다음 문제가 발생한다.
 
----
+- 동일 회원의 상태 검증 로직 중복
+- 하나의 요청에 대해 반복적인 회원 조회 발생
+- 회원 상태 정책 변경 시 여러 계층 동시 수정 필요
+- Interceptor와 ArgumentResolver가 회원 도메인과 Repository에 의존
+- 웹 계층을 거치지 않고 Service 호출 시 `ACTIVE` 회원 정책 보장 불가
+- Controller마다 검증 여부가 달라질 경우 유스케이스별 정책의 일관성 깨짐
 
-## AD-036. SSR 요청과 API 요청의 미인증 처리 정책 분리
-
-### 배경
-
-Dev Board는 Thymeleaf 기반 SSR 화면과 `fetch()` 기반 JSON API를 함께 사용한다.
-
-기존에는 모든 미인증 요청을 로그인 페이지로 redirect했다.  
-그러나 API 요청에서 `fetch()`가 redirect를 자동으로 따라가면서 다음 문제가 발생했다.
-
-- 댓글 작성 요청이 로그인 Form의 `200 OK`를 성공 응답으로 오인
-- 댓글 수정·삭제 요청이 로그인 URL에서 `405 Method Not Allowed` 발생
-- 로그인 후 복귀 URL로 게시글 화면이 아닌 API 경로가 전달됨
-
-상세한 재현 과정 및 원인 분석은 [Troubleshooting](./troubleshooting.md)에서 관리한다.
+따라서 로그인 여부 확인과 로그인 회원 식별 및 비즈니스 상태 검증을 구분하고,
+모든 유스케이스에서 `ACTIVE` 회원 정책을 일관되게 보장할 수 있도록
+회원 상태 검증을 담당할 계층을 명확히 결정할 필요가 있었다.
 
 ### 고려한 대안
 
-- **모든 미인증 요청을 redirect**
-  - SSR에는 자연스럽지만 API의 인증 실패가 최종 응답 뒤에 가려질 수 있음
-- **모든 미인증 요청에 `401 Unauthorized` 반환**
-  - API에는 적합하지만 SSR 화면에서 로그인 페이지로 자연스럽게 이동하지 않음
-- **SSR과 API 요청을 구분하여 처리**
-  - 요청 유형에 맞는 응답을 제공할 수 있지만, 서버와 클라이언트의 역할 분리가 필요
+- **`LoginCheckInterceptor`에서 `ACTIVE` 회원 검증**
+  - 유효하지 않은 회원의 요청을 Controller 실행 전에 차단할 수 있지만,
+    Interceptor가 회원 도메인과 Repository에 의존하게 된다.
+  - 로그인 필수 요청마다 회원 DB 조회가 발생하며,
+    Service가 웹 계층 외부에서 호출되는 경우에는 같은 정책을 보장하지 못한다.
+
+- **`LoginMemberIdArgumentResolver`에서 `ACTIVE` 회원 검증**
+  - Controller에는 유효한 회원 ID만 전달할 수 있지만,
+    사용자 식별을 담당하는 Resolver가 회원 상태 검증까지 수행하게 된다.
+  - 모든 `@LoginMemberId` 파라미터에 암묵적인 DB 조회가 발생하고,
+    Service의 검증과 중복될 수 있다.
+
+- **Controller에서 `ACTIVE` 회원 검증**
+  - 요청별 검증 흐름을 명시적으로 구성할 수 있지만,
+    Controller마다 검증 코드가 반복되고 비즈니스 정책이 Presentation 계층에 분산된다.
+
+- **Service에서 `ACTIVE` 회원 검증**
+  - 실제 유스케이스를 수행하는 계층에서 회원 상태를 최종적으로 검증할 수 있다.
+  - 웹 Controller 외부에서 Service가 호출되더라도 같은 정책을 보장할 수 있다.
 
 ### 결정
 
-**미인증 요청을 SSR과 API로 구분하여 다음 정책을 적용한다.**
+**`ACTIVE` 회원 검증 책임을 Service 계층에 둔다.**
 
-#### 요청 유형 판별
-
-현재 Handler의 `@ResponseBody` 적용 여부를 기준으로 API 요청을 판별한다.
-
-- `@RestController`가 적용된 Controller
-- 개별 Handler 메서드에 `@ResponseBody`가 적용된 Controller
-
-Handler가 `HandlerMethod`가 아니거나 `@ResponseBody`가 적용되지 않았다면
-SSR 요청으로 처리한다.
-
-#### SSR 요청
-
-미인증 SSR 요청에는 로그인 페이지로의 `302 Found`를 반환한다.
-
-서버는 요청 URI와 쿼리 스트링으로 `redirectURL`을 구성하고,
-로그인 성공 후 원래 요청 화면으로 복귀시킨다.
-
-구체적인 복귀 정책은 `AD-006. 로그인 후 원래 요청 페이지 복귀`를 따른다.
-
-#### API 요청
-
-미인증 API 요청에는 redirect 대신 다음 응답을 반환한다.
+각 계층의 책임을 다음과 같이 분리한다.
 
 ```text
-HTTP 401 Unauthorized
-ApiErrorCode LOGIN_REQUIRED
+LoginCheckInterceptor
+→ 세션에 로그인 회원 ID가 존재하는지 확인
+
+LoginMemberIdArgumentResolver
+→ 세션의 로그인 회원 ID를 Controller 파라미터로 전달
+
+Controller
+→ 요청 데이터와 화면 모델을 구성하고 Service 호출
+
+Service
+→ 회원의 존재 및 ACTIVE 상태 검증
+→ 대상 리소스 상태와 권한 등 유스케이스 규칙 검증
 ```
 
-`LoginCheckInterceptor`는 Controller 실행 전에 요청을 차단하므로,
-`ApiExceptionHandler`가 아닌 Interceptor에서 JSON 응답을 직접 생성한다.
-
-응답은 다른 API 오류와 동일하게 `ApiErrorCode`와 `ApiErrorResponse`를 사용한다.  
-초기에는 빈 본문의 `401 Unauthorized`를 사용했지만,
-공통 API 오류 응답 도입 후 `LOGIN_REQUIRED` JSON 응답으로 확장했다.
-
-구체적인 응답 명세는 [API Specification](./api-specification.md)에서 관리한다.
-
-#### 클라이언트 처리
-
-댓글 클라이언트는 다음 조건을 모두 만족할 때 로그인 필요 상황으로 처리한다.
+Service는 회원 ID와 ACTIVE 상태를 조건으로 회원을 조회한다.
 
 ```text
-HTTP 401 Unauthorized
-+
-ApiErrorCode LOGIN_REQUIRED
+- memberId 일치
+- status == ACTIVE
 ```
 
-조건을 만족하면 세션 만료를 안내하고,
-현재 화면의 경로와 쿼리 스트링을 `redirectURL`로 전달하여 로그인 페이지로 이동한다.
+조건을 만족하는 회원이 없으면 `MemberNotFoundException`을 발생시킨다.
 
-로그인 후에는 원래 게시글 화면으로 복귀하지만,
-의도하지 않은 데이터 변경을 방지하기 위해
-중단된 댓글 요청을 자동으로 재실행하지 않는다.
+공개 화면에서 로그인 여부만 표시하는 경우에는 세션의 로그인 회원 ID 존재 여부를 사용한다.  
+이 과정에서 Controller가 `MemberRepository`를 직접 사용하여 `ACTIVE` 회원을 조회하지 않는다.
+
+회원의 역할이나 실제 작업 수행 가능 여부를 판단해야 하는 경우에는
+Service가 `ACTIVE` 회원을 조회한 뒤 처리한다.
 
 ### 이유
 
-- SSR과 API는 인증 실패 이후 기대하는 동작이 서로 다르다.
-- API에 redirect를 반환하면 `fetch()`의 자동 추적으로 최초 인증 실패가 가려질 수 있다.
-- 현재 화면의 복귀 URL은 해당 화면을 알고 있는 클라이언트가 구성하는 것이 적절하다.
-- HTTP 상태와 오류 코드를 함께 사용하면 `message` 문자열에 의존하지 않고 인증 오류를 구분할 수 있다.
-- 중단된 변경 요청의 자동 재실행보다 사용자의 의도와 데이터 변경의 안전성을 우선한다.
+회원의 존재 및 `ACTIVE` 상태는
+현재 회원이 해당 유스케이스를 수행할 수 있는지를 결정하는 비즈니스 규칙이다.
+
+Service에서 `ACTIVE` 회원을 검증하면 다음 규칙을 각 유스케이스의 불변식으로 보장할 수 있다.
+
+- 게시글을 작성·수정·삭제하는 회원은 `ACTIVE` 상태여야 한다.
+- 댓글을 작성·수정·삭제하는 회원은 `ACTIVE` 상태여야 한다.
+- 마이페이지를 조회하거나 회원정보를 수정, 탈퇴하는 회원은 `ACTIVE` 상태여야 한다.
+- 관리자 역할과 요청 수행 권한을 판단하는 회원은 `ACTIVE` 상태여야 한다.
+
+Service가 웹 Controller 이외의 경로에서 호출되더라도 같은 규칙이 적용된다.
+
+Interceptor와 ArgumentResolver는 회원 Repository에 의존하지 않고,
+로그인 확인과 사용자 식별이라는 웹 요청 처리 책임에 집중할 수 있다.
 
 ### 결과 및 트레이드오프
 
-- SSR 요청은 기존의 로그인 redirect 흐름 유지
-- API 요청은 `401 Unauthorized`와 `LOGIN_REQUIRED` JSON 응답 반환
-- 로그인 Form HTML의 성공 응답 오인 및 redirect 이후의 `405 Method Not Allowed` 문제 해결
-- 로그인 후 원래 게시글 상세 화면으로 복귀
-- 인증 실패 이후 입력 초기화와 댓글 목록 재조회 등의 성공 처리 중단
-- 댓글 API의 인증 실패 처리 흐름 공통화
-- API 클라이언트가 HTTP 상태와 오류 코드를 함께 해석해야 함
-- `LoginCheckInterceptor`가 JSON 응답 생성 책임을 일부 담당함
-- 중단된 변경 요청은 사용자가 로그인 후 다시 실행해야 함
+- `ACTIVE` 회원 검증 책임을 Service 계층에 집중
+- 로그인 확인, 사용자 식별 및 비즈니스 상태 검증의 책임 분리
+- Interceptor와 ArgumentResolver의 회원 Repository 의존 제거
+- Controller의 회원 상태 검증 및 `MemberRepository` 직접 조회 제거
+- 웹 Controller 외부에서 Service가 호출되더라도 `ACTIVE` 회원 정책 보장
+- 회원 상태 정책 변경 시 Service 계층을 중심으로 수정 가능
+- 각 도메인 Service에 `findActiveMemberElseThrow()`와 유사한 내부 조회 코드 일부 반복
+- 공개 화면에서는 세션 회원 ID의 존재 여부만으로 로그인 상태를 표시하므로,
+  세션과 DB의 회원 상태가 일시적으로 불일치할 수 있음
+- `MemberNotFoundException` 발생 이후의 세션 정리 및 응답 생성은
+  요청 유형별 예외 처리 정책에 위임하여 Service의 검증 책임과 분리
 
 ---
 
@@ -785,8 +1009,10 @@ Dev Board는 Thymeleaf 기반 SSR 요청과 JSON 기반 API 요청을 함께 사
 
 - **하나의 전역 예외 처리기 유지**
   - 클래스는 하나로 유지할 수 있지만, 요청 유형에 따른 응답 분기가 증가한다.
+
 - **Controller별 예외 처리**
   - 각 요청에 맞게 처리할 수 있지만, 중복이 발생하고 오류 정책이 분산된다.
+
 - **SSR과 API 전용 예외 처리기 분리**
   - 클래스는 늘어나지만, 요청 유형별 책임과 확장 범위를 명확히 구분할 수 있다.
 
@@ -802,9 +1028,10 @@ Dev Board는 Thymeleaf 기반 SSR 요청과 JSON 기반 API 요청을 함께 사
 - `MemberController`
 - `BoardController`
 
-이를 통해 SSR 예외 처리 메서드가 API Controller의 예외를 처리하지 않도록 한다.  
-현재는 기존 redirect 정책을 유지하며,
-HTTP 상태와 전용 오류 화면 정책은 추후 별도로 확정한다.
+이를 통해 SSR 예외 처리 메서드가 API Controller의 예외를 처리하지 않도록 한다.
+
+SSR 예외별 HTTP 상태, 오류 화면 및 유효하지 않은 로그인 세션 처리에 관한 세부 정책은
+`AD-038. SSR 예외 및 오류 화면 처리 정책`을 따른다.
 
 #### API 예외 처리
 
@@ -824,7 +1051,8 @@ HTTP 상태와 전용 오류 화면 정책은 추후 별도로 확정한다.
 내부 예외 정보는 응답에 노출하지 않고 원본 예외를 서버 로그에 기록한다.
 
 구체적인 응답 구조 및 오류 코드 목록은 [API Specification](./api-specification.md)에서 관리한다.  
-Validation 오류는 `AD-033`, 미인증 요청은 `AD-036`의 세부 정책을 따른다.
+Validation 오류는 `AD-033. API Validation 실패 응답 처리`,
+미인증 요청은 `AD-036. SSR 요청과 API 요청의 미인증 처리 정책 분리`의 세부 정책을 따른다.
 
 ### 이유
 
@@ -843,6 +1071,129 @@ Validation 오류는 `AD-033`, 미인증 요청은 `AD-036`의 세부 정책을 
 - 예외 처리 클래스와 오류 코드 매핑 관리 대상 증가
 - 새로운 SSR Controller 추가 시 `SsrExceptionHandler` 적용 범위 갱신 필요
 - Spring MVC에서 Controller 선택 이전에 발생한 오류는 공통 API 오류 형식으로 변환되지 않을 수 있음
+
+---
+
+## AD-038. SSR 예외 및 오류 화면 처리 정책
+
+### 배경
+
+기존 `SsrExceptionHandler`는 도메인 및 권한 예외가 발생하면 홈이나 게시글 목록으로 리다이렉트했다.  
+이 방식은 사용자가 실패 원인을 알기 어렵고,
+리소스 부재나 접근 거부와 같은 서로 다른 오류를 HTTP 상태로 표현하지 못했다.
+
+반면 모든 예외를 하나의 범용 처리기로 변환하면
+Spring MVC가 이미 알고 있는 요청 형식 오류나 리소스 부재까지
+`500 Internal Server Error`로 잘못 처리할 수 있다.  
+따라서 예상 가능한 SSR 예외를 명시적으로 처리하면서도
+프레임워크의 기본 오류 처리와 서버 오류 기록을 유지할 기준이 필요했다.
+
+또한 세션에 회원 ID가 있지만 Service에서 해당 회원을 찾지 못해 발생하는
+`MemberNotFoundException`은 일반적인 리소스 부재와 성격이 다르다.  
+이는 세션의 인증 정보와 현재 애플리케이션의 상태가 일치하지 않는 상황이므로 별도의 복구 정책이 필요했다.
+
+### 고려한 대안
+
+- **모든 SSR 예외를 Spring MVC와 Spring Boot 기본 처리에 위임**
+  - 별도 구현은 줄어들지만, 도메인별 안내 메시지와 세션 복구 정책을 적용하기 어렵다.
+
+- **`Exception.class`를 처리하는 범용 처리기로 모든 SSR 예외 처리**
+  - 하나의 500 오류 화면으로 일관되게 응답할 수 있지만,
+    400·404 등 고유한 상태 의미를 가진 예외까지 500으로 변환될 수 있다.
+
+- **예상 가능한 예외만 명시적으로 처리하고 나머지는 기본 처리에 위임**
+  - 예외별 상태와 사용자 메시지를 제어하면서
+    Spring MVC의 기본 상태 변환 및 Spring Boot의 오류 화면 탐색을 유지할 수 있다.
+  - 새로운 예외에 별도의 SSR 응답 정책이 필요하면 명시적인 예외 처리 규칙을 추가해야 한다.
+
+### 결정
+
+**예상 가능한 SSR 예외는 `SsrExceptionHandler`에서 명시적으로 처리하고,
+그 밖의 오류는 Spring MVC와 Spring Boot의 기본 오류 처리에 위임한다.**
+
+#### 예상 가능한 SSR 예외 처리
+
+요청 형식, 권한 및 도메인 리소스 부재 등
+애플리케이션에서 예상 가능한 예외는 HTTP 상태와 상태별 오류 View로 변환한다.
+
+|                  예외                   | HTTP 상태 | 처리 정책                |
+|:-------------------------------------:|:-------:|----------------------|
+| `MethodArgumentTypeMismatchException` |   400   | 요청 값의 형식이 잘못되었음을 안내  |
+|        `AccessDeniedException`        |   403   | 요청을 수행할 권한이 없음을 안내   |
+|       `BoardNotFoundException`        |   404   | 요청한 게시글이 존재하지 않음을 안내 |
+
+명시적으로 처리한 예외의 사용자 메시지는 오류 View에 전달한다.  
+오류 템플릿은 전달받은 메시지가 있으면 이를 사용하고,
+없으면 상태별 기본 메시지를 사용한다.
+
+현재 명시적으로 처리하지 않는 다른 Spring MVC 예외는
+필요성이 확인되기 전까지 개별 Handler를 추가하지 않고 기본 처리에 맡긴다.
+
+#### 유효하지 않은 로그인 세션 처리
+
+로그인 세션에 회원 ID가 존재하더라도 회원이 삭제되었거나 `ACTIVE` 상태가 아니면
+Service에서 `MemberNotFoundException`이 발생한다.  
+SSR 요청에서 이 예외는 일반적인 `404 Not Found`가 아니라
+세션의 인증 정보와 애플리케이션의 상태가 일치하지 않는 상황으로 처리한다.
+
+```text
+MemberNotFoundException
+→ 기존 로그인 세션 무효화
+→ 세션 무효화 상태를 포함해 로그인 페이지로 리다이렉트
+→ 로그인 Form에서 재로그인 안내
+```
+
+세션 무효화 이후에는 원래 요청 URL을 보존하거나 로그인 성공 후 자동으로 복귀시키지 않는다.  
+원래 요청이 상태 변경 요청일 수 있고, 세션과 애플리케이션 상태가 불일치했던 요청을
+자동으로 다시 실행하거나 해당 경로로 복귀시키는 것은 적절하지 않기 때문이다.
+
+회원의 존재 및 `ACTIVE` 상태를 검증하는 책임은 Service가 유지하며,
+`SsrExceptionHandler`는 예외 발생 이후의 세션 정리와 응답 생성을 담당한다.
+
+#### Spring 기본 오류 처리에 위임
+
+존재하지 않는 URL이나 정적 리소스에서 발생하는 `NoResourceFoundException`은
+`SsrExceptionHandler`에서 별도로 처리하지 않는다.  
+Spring MVC가 이를 `404 Not Found`로 처리하고,
+이어지는 `/error` 오류 디스패치에서 Spring Boot가 오류 응답을 생성하도록 맡긴다.
+
+`Exception.class`를 처리하는 범용 SSR 예외 Handler도 두지 않는다.  
+예상하지 못한 예외는 기본 처리 흐름을 통해 `500 Internal Server Error`로 응답하고,
+원본 예외와 Stack Trace는 서버 로그에 남긴다.  
+오류 응답에 포함되는 세부 정보는 실행 환경의 Spring Boot 오류 설정을 따른다.
+
+이를 통해 명시적으로 처리하지 않은 Spring MVC 표준 예외의 상태 의미를 보존하고,
+잘못된 상태로 변환되는 것을 방지한다.
+
+#### 오류 화면 구성
+
+상태별 오류 화면은 400, 403, 404, 500으로 구분하고,
+개별 화면이 없는 상태를 위해 4xx와 5xx 계열의 fallback 화면을 제공한다.  
+각 화면은 공통 Fragment와 스타일을 공유하며 실제 HTTP 상태 코드는 유지한다.  
+단, 오류 처리 중 추가 실패를 방지하기 위해 DB 조회나 로그인 세션에 의존하지 않는다.
+
+Spring Boot의 기본 오류 처리는 요청의 `Accept` 헤더에 따라 HTML 또는 JSON을 선택할 수 있다.  
+브라우저의 HTML 요청에는 위 오류 화면을 렌더링하고,
+JSON을 선호하는 요청에는 기본 JSON 오류 응답이 반환될 수 있다.
+
+오류 디스패치에 대한 Interceptor 정책은 `AD-037. Handler 메타데이터 기반 공개 접근 정책`을 따른다.
+
+### 이유
+
+- 예상 가능한 오류에 올바른 HTTP 상태와 사용자 안내 화면 제공 가능
+- 도메인 리소스 부재와 유효하지 않은 로그인 세션을 서로 다른 상황으로 처리 가능
+- 명시적으로 처리하지 않은 Spring MVC 표준 예외의 기본 상태 변환 유지 가능
+- 예상하지 못한 서버 예외의 기본 500 응답 및 서버 로그 기록 흐름 유지 가능
+- 공통 Fragment와 fallback 템플릿을 통해 오류 화면 중복 감소 가능
+
+### 결과 및 트레이드오프
+
+- 요청 형식 오류, 접근 거부 및 게시글 부재에 상태별 SSR 오류 화면 제공
+- 유효하지 않은 로그인 세션을 무효화하고, 로그인 Form에서 사용자에게 안내
+- `NoResourceFoundException`과 예상하지 못한 예외는 기본 오류 처리 흐름 유지
+- 400·403·404·500 전용 화면과 4xx·5xx fallback 화면 제공
+- 범용 SSR 예외 Handler를 두지 않음으로써 프레임워크의 기본 상태 의미와 서버 오류 기록 유지
+- 새로운 예외에 별도의 SSR 응답 정책 필요 시, 명시적인 예외 처리 규칙 추가 필요
 
 ---
 

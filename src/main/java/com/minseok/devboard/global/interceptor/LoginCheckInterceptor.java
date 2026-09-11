@@ -6,15 +6,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.resource.ResourceHttpRequestHandler;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import static com.minseok.devboard.global.common.SessionConst.LOGIN_MEMBER_ID;
@@ -30,8 +32,13 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
     public boolean preHandle(final HttpServletRequest request,
                              final HttpServletResponse response,
                              final Object handler) throws IOException {
-        // 공개 접근 경로: 게시글 목록, 게시글 상세, 댓글 목록
-        if (isPublicRequest(request)) {
+        // 정적 리소스 요청 -> 통과
+        if (handler instanceof ResourceHttpRequestHandler) {
+            return true;
+        }
+        
+        // @PublicAccess가 붙은 공개 요청 -> 통과
+        if (isPublicAccessRequest(handler)) {
             return true;
         }
         
@@ -49,16 +56,13 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
             
         } else {
             // SSR 요청 -> 302 Found (로그인 페이지로 redirect)
-            response.sendRedirect("/members/login?redirectURL="
-                                          + getEncodedRedirectURL(request));
+            redirectToLogin(request, response);
         }
         
         return false;
     }
     
-    private void writeLoginRequiredResponse(
-            final HttpServletResponse response) throws IOException {
-        
+    private void writeLoginRequiredResponse(final HttpServletResponse response) throws IOException {
         assert (response != null);
         
         final ApiErrorCode errorCode = ApiErrorCode.LOGIN_REQUIRED;
@@ -71,28 +75,15 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
                               ApiErrorResponse.from(errorCode));
     }
     
-    /**
-     * 비로그인 시에도 접근 가능한 요청인지 확인
-     * <p>
-     * 1. 게시글 목록
-     * <p>
-     * 2. 게시글 상세
-     * <p>
-     * 3. 댓글 목록
-     */
-    private static boolean isPublicRequest(final HttpServletRequest request) {
-        assert (request != null);
+    private static boolean isPublicAccessRequest(final Object handler) {
+        assert (handler != null);
         
-        final String requestMethod = request.getMethod();
-        final String requestURI = request.getRequestURI();
+        if (!(handler instanceof HandlerMethod handlerMethod)) {
+            return false;
+        }
         
-        final boolean isGet = requestMethod.equals("GET");
-        
-        final boolean isBoardList = requestURI.equals("/boards");
-        final boolean isBoardDetail = requestURI.matches("^/boards/\\d+$"); // 예: /boards/123
-        final boolean isCommentList = requestURI.matches("^/boards/\\d+/comments$");
-        
-        return isGet && (isBoardList || isBoardDetail || isCommentList);
+        return hasAnnotation(handlerMethod.getMethod(),
+                             PublicAccess.class);
     }
     
     private static boolean isApiRequest(final Object handler) {
@@ -105,23 +96,34 @@ public class LoginCheckInterceptor implements HandlerInterceptor {
         
         final boolean hasResponseBodyOnClass = hasAnnotation(handlerMethod.getBeanType(),
                                                              ResponseBody.class);
-        
         final boolean hasResponseBodyOnMethod = hasAnnotation(handlerMethod.getMethod(),
                                                               ResponseBody.class);
         
         return hasResponseBodyOnClass || hasResponseBodyOnMethod;
     }
     
-    private static String getEncodedRedirectURL(final HttpServletRequest request) {
+    private static void redirectToLogin(final HttpServletRequest request,
+                                        final HttpServletResponse response) throws IOException {
         assert (request != null);
+        assert (response != null);
         
-        final String requestURI = request.getRequestURI();
-        final String queryString = request.getQueryString();
+        final String loginPath = "/members/login";
         
-        final String redirectURL = (queryString == null)
-                                   ? requestURI
-                                   : requestURI + "?" + queryString;
-        
-        return URLEncoder.encode(redirectURL, StandardCharsets.UTF_8);
+        if (HttpMethod.GET.matches(request.getMethod())) {
+            final String requestURI = request.getRequestURI();
+            final String queryString = request.getQueryString();
+            final String redirectURL = (queryString == null)
+                                       ? requestURI
+                                       : requestURI + "?" + queryString;
+            
+            response.sendRedirect(
+                    UriComponentsBuilder.fromPath(loginPath)
+                                        .queryParam("redirectURL", "{redirectURL}")
+                                        .encode(StandardCharsets.UTF_8)
+                                        .buildAndExpand(redirectURL)
+                                        .toUriString());
+        } else {
+            response.sendRedirect(loginPath);
+        }
     }
 }

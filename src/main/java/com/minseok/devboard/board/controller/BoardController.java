@@ -6,13 +6,13 @@ import com.minseok.devboard.board.dto.response.BoardDetailResponse;
 import com.minseok.devboard.board.dto.response.BoardPageResponse;
 import com.minseok.devboard.board.dto.response.BoardUpdateResponse;
 import com.minseok.devboard.board.service.BoardService;
+import com.minseok.devboard.global.interceptor.PublicAccess;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import com.minseok.devboard.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-@Slf4j
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/boards")
@@ -75,6 +74,7 @@ public class BoardController {
     /**
      * 게시글 상세
      */
+    @PublicAccess
     @GetMapping("/{boardId}")
     public String detail(
             final @Nullable @LoginMemberId(required = false) Long loginMemberId,
@@ -111,6 +111,7 @@ public class BoardController {
      * 게시글 목록(페이지) 조회
      * page(query param): 1-base
      */
+    @PublicAccess
     @GetMapping
     public String boardList(
             final @Nullable @LoginMemberId(required = false) Long loginMemberId,
@@ -184,8 +185,6 @@ public class BoardController {
         assert (boardId != null);
         assert (response != null);
         
-        log.info("viewedBoardsOrNull = {}", viewedBoardsOrNull);
-        
         final String cookieValue;
         
         if (viewedBoardsOrNull == null) {
@@ -202,8 +201,6 @@ public class BoardController {
             
             cookieValue = (viewedBoardsOrNull + VIEWED_BOARDS_SEPARATOR + boardId);
         }
-        
-        log.info("cookieValue = {}", cookieValue);
         
         final Cookie cookie = new Cookie(VIEWED_BOARDS_COOKIE, cookieValue);
         cookie.setMaxAge(VIEW_COOKIE_MAX_AGE);

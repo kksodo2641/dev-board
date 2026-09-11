@@ -4,6 +4,7 @@ import com.minseok.devboard.comment.dto.request.UpdateCommentRequest;
 import com.minseok.devboard.comment.dto.request.WriteCommentRequest;
 import com.minseok.devboard.comment.dto.response.CommentResponse;
 import com.minseok.devboard.comment.service.CommentService;
+import com.minseok.devboard.global.interceptor.PublicAccess;
 import com.minseok.devboard.global.resolver.LoginMemberId;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class CommentApiController {
     
     private final CommentService commentService;
     
+    @PublicAccess
     @GetMapping("/boards/{boardId}/comments")
     public List<CommentResponse> list(
             final @Nullable @LoginMemberId(required = false) Long loginMemberId,

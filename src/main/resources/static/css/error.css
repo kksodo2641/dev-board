@@ -1,0 +1,55 @@
+.error-card {
+    width: 100%;
+    max-width: 560px;
+
+    padding: 48px 40px;
+
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+    text-align: center;
+}
+
+.error-status {
+    margin-bottom: 16px;
+
+    color: #2563eb;
+
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.error-title {
+    margin-bottom: 16px;
+
+    color: #111827;
+
+    font-size: 28px;
+}
+
+.error-description {
+    color: #666;
+
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.error-card .button-group {
+    margin-top: 32px;
+}
+
+@media (max-width: 640px) {
+    .error-card {
+        padding: 40px 24px;
+    }
+
+    .error-status {
+        font-size: 56px;
+    }
+
+    .error-title {
+        font-size: 24px;
+    }
+}

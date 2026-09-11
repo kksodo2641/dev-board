@@ -19,16 +19,10 @@ public class WebConfig implements WebMvcConfigurer {
     
     @Override
     public void addInterceptors(final InterceptorRegistry registry) {
-        
         registry.addInterceptor(loginCheckInterceptor)
                 .order(0)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/",                                // 홈
-                                     "/members/signup",                  // 회원 가입
-                                     "/members/login",                   // 로그인
-                                     "/css/**", "/js/**", "/images/**",  // 정적 리소스
-                                     "/error",                           // 에러 페이지
-                                     "/*.ico");                          // 브라우저 탭 아이콘(favicon)
+                .excludePathPatterns("/error"); // 오류 디스패치의 인터셉터 적용 제외
     }
     
     @Override

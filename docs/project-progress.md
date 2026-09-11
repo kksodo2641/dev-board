@@ -3,18 +3,12 @@
 ## 개요
 
 본 문서는 Dev Board 프로젝트의 개발 진행 현황과 향후 계획을 기록하기 위한 문서이다.  
-완료된 작업, 현재 브랜치에서 진행 중인 작업, 다음 기능 및 리팩토링 계획을 구분하여
+완료된 작업과 다음 기능 및 리팩토링 계획을 구분하여
 프로젝트의 현재 상태와 이후 진행 방향을 한눈에 확인할 수 있도록 관리한다.
 
 ### 참고
 
 - 별도의 구분이 필요한 경우를 제외하고, `댓글`은 `일반 댓글`과 `대댓글`을 모두 포함한다.
-
----
-
-## 현재 브랜치
-
-`refactor/login-member-resolution`
 
 ---
 
@@ -72,10 +66,13 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 - `WebConfig` 구현
 - `LoginCheckInterceptor` 등록
-  - 정적 리소스 경로 제외 설정 적용
-  - 홈, 회원가입, 로그인, 에러 페이지 접근 제외 설정 적용
-  - `@RestController` 및 `@ResponseBody` 기반 API 요청 판별 적용
+  - Controller 요청의 `@PublicAccess` 기반 공개 접근 판별
+  - 정적 리소스를 처리하는 `ResourceHttpRequestHandler` 요청 허용
+  - 알 수 없는 Handler에 기본 비공개 정책 적용
+  - `@RestController` 및 `@ResponseBody` 기반 API 요청 판별
+  - 오류 dispatch 경로인 `/error`를 Interceptor 적용 대상에서 제외
 - `LoginMemberIdArgumentResolver` 등록
+- Spring Boot DevTools를 개발 환경 전용 의존성으로 분리
 
 ---
 
@@ -89,18 +86,18 @@ Dev Board는 다음 순서로 기능을 구현한다.
   - 회원의 존재 여부와 `ACTIVE` 상태 검증 책임을 Service 계층으로 집중
 - 인터셉터 기반 로그인 검증 적용
 - Controller 인증 로직 제거
-- URL Encoding 기반 로그인 후 원래 요청 페이지 복귀 처리 적용
-- 미인증 SSR 요청과 API 요청의 응답 정책 분리
-- 미인증 SSR 요청에 로그인 페이지 `302 Found` redirect 적용
+- `@PublicAccess` 기반 공개 요청 판별
+- 미인증 SSR/API 요청의 응답 정책 분리
+- 미인증 SSR 요청에 로그인 페이지로의 `302 Found` redirect 적용
 - 미인증 API 요청에 `LOGIN_REQUIRED` JSON을 `401 Unauthorized` 상태로 응답
+- 미인증 SSR GET 요청의 복귀 URL을 서버에서 구성
+- 미인증 SSR 상태 변경 요청에는 복귀 URL을 전달하지 않고 로그인 후 홈 화면으로 이동
+  - 로그인 후 기존 상태 변경 요청의 자동 재실행 방지
+- 미인증 API 요청의 복귀 URL을 클라이언트에서 구성
+- 로그인 세션과 회원 상태 불일치 시 세션 무효화 및 재로그인 안내
 - 미인증 SSR/API 요청의 응답 분기 테스트 작성
 - 미인증 API 응답의 상태, 오류 코드, 메시지 및 응답 형식 검증
-- SSR 요청의 로그인 후 복귀 URL을 서버에서 구성
-- API 요청의 로그인 후 복귀 URL을 클라이언트에서 구성
 - 인증 실패로 중단된 댓글 변경 요청의 자동 재실행 제한
-- 비회원 게시글 목록 조회 허용
-- 비회원 게시글 상세 조회 허용
-- 비회원 댓글 목록 조회 허용
 
 ---
 
@@ -123,10 +120,16 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - 기존 `GlobalExceptionHandler`를 SSR/API 전용 예외 처리기로 분리
 - `SsrExceptionHandler` 구현
   - SSR Controller로 적용 범위 제한
-  - `MemberNotFoundException` 전역 처리
-  - `BoardNotFoundException` 전역 처리
-  - `AccessDeniedException` 전역 처리
-  - 기존 HTML 화면 기반 redirect 정책 유지
+  - 요청 값 형식 오류를 `400 Bad Request` 화면으로 처리
+  - 접근 거부를 `403 Forbidden` 화면으로 처리
+  - 게시글 부재를 `404 Not Found` 화면으로 처리
+  - 로그인 회원 부재 시 세션 무효화 후 로그인 화면으로 이동
+  - 범용 `Exception` 처리기 미적용
+- 별도로 처리하지 않은 오류를 Spring 기본 오류 처리 흐름에 위임
+- `400`, `403`, `404`, `500` 전용 오류 화면 제공
+- `4xx`, `5xx` 범위별 fallback 오류 화면 제공
+- SSR 예외 처리 정책 테스트 작성
+- 브라우저와 `curl`을 이용한 SSR 오류 응답 수동 검증
 - `ApiExceptionHandler` 구현
   - `@RestController` 기반 API 예외 처리
   - 요청 형식, Validation, 도메인, 권한 및 서버 오류 공통 처리
@@ -356,27 +359,6 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ---
 
-## 진행 중
-
-공개 Controller의 로그인 회원 ID 조회 방식 통일
-
-### 현재 브랜치 작업 범위
-
-- 공개 Controller의 선택적 로그인 회원 ID 조회에
-  `@Nullable @LoginMemberId(required = false)` 적용
-- `HomeController`의 `@SessionAttribute` 직접 사용 제거
-- `HomeController`의 `MemberRepository` 직접 의존 및 `ACTIVE` 회원 조회 제거
-- 홈 화면의 로그인 여부를 세션 회원 ID 존재 여부로 판단
-- `BoardController`의 게시글 목록·상세 요청에서 `@SessionAttribute` 직접 사용 제거
-- Controller의 로그인 회원 ID 조회 방식을 `LoginMemberIdArgumentResolver`로 통일
-- 로그인 확인, 사용자 식별 및 `ACTIVE` 회원 검증의 기존 책임 구조 문서화
-- AD-003·004·005 보강 및 관련 ADR의 대안·결정 형식 통일
-- README, Domain Design 및 Project Progress 최신화
-- 코드와 문서 변경 사항을 별도 커밋으로 정리
-- 변경 사항 최종 검증 및 Git 정리
-
----
-
 ## 진행 예정
 
 ### BoardLike
@@ -423,6 +405,7 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ##### Global / Member 검토 항목
 
+- API 요청의 로그인 세션 불일치 처리 정책 정비
 - 로그인 `redirectURL`이 애플리케이션 내부 경로인지 검증하는 방안 검토
 - datasource 접속 정보를 환경변수 또는 외부 설정으로 분리
 - 향후 Spring Security 도입 시, 세션 기반 상태 변경 요청의 CSRF 방어 적용 검토
@@ -442,7 +425,6 @@ Dev Board는 다음 순서로 기능을 구현한다.
   - 초기 ADR의 배경, 대안, 선택 이유 및 트레이드오프 보강
   - 후속 ADR과의 중복 및 참조 관계 정리
   - 지나치게 긴 ADR의 분량 축소 및 가독성 개선
-  - 최종 구현과 설계 결정의 일치 여부 확인
 
 ---
 
