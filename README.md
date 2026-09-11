@@ -64,7 +64,9 @@ Dev Board는 개발자들이 게시글과 댓글을 통해 자유롭게 정보�
 - 로그아웃
 - 세션 기반 인증
 - 미인증 SSR 요청과 API 요청의 응답 정책 분리
-- 세션 만료 후 로그인 시 기존 화면 복귀 처리
+- 미인증 SSR GET 요청의 로그인 후 기존 화면 복귀
+- 미인증 SSR 상태 변경 요청의 로그인 후 자동 복귀 및 재실행 방지
+- 유효하지 않은 로그인 세션의 무효화 및 재로그인 안내
 
 ### 마이페이지
 
@@ -231,21 +233,41 @@ Service
 
 ### LoginCheckInterceptor
 
-로그인이 필요한 요청에 대해 Controller가 실행되기 전에
-세션에 로그인 회원 ID가 존재하는지 확인한다.  
+#### 공개 요청 판별
+
+Controller 요청은 `HandlerMethod`의 `@PublicAccess` 적용 여부를 기준으로
+공개 요청과 로그인 필수 요청으로 구분한다.  
+`@PublicAccess`가 없는 Controller 요청은 기본적으로 로그인 필수 요청으로 처리한다.
+
+정적 리소스에 매핑되는 `ResourceHttpRequestHandler`는 로그인 검사 없이 통과시킨다.  
+그 외 알 수 없는 Handler에는 기본 비공개 정책을 적용한다.
+
+#### 로그인 확인 범위
+
+로그인 필수 요청에 대해 Controller가 실행되기 전에 세션에 로그인 회원 ID가 존재하는지 확인한다.  
 로그인 회원 ID가 없으면 미인증 요청으로 판단하여 처리한다.
 
 이를 통해 각 Controller에서 로그인 확인 코드를 반복하지 않고,
-인증이 필요한 요청의 접근 정책을 한곳에서 관리한다.  
-단, 세션의 로그인 회원 ID 존재 여부만 확인하며,
-회원의 실제 존재 여부나 `ACTIVE` 상태를 DB에서 검증하지 않는다.
+로그인 필수 요청의 접근 정책을 한 곳에서 관리한다.  
+단, `LoginCheckInterceptor`는 세션의 로그인 회원 ID 존재 여부만 확인하며,
+회원의 실제 존재 여부나 `ACTIVE` 상태를 검증하지 않는다.
 
-또한 실행 대상 Handler의 `@RestController`와 `@ResponseBody` 적용 여부를 기준으로
-SSR 요청과 API 요청을 구분한다.  
-미인증 SSR 요청은 로그인 페이지로의 `302 Found` redirect를 적용하고,
-미인증 API 요청은 `LOGIN_REQUIRED` 오류 정보를 담은 JSON을 `401 Unauthorized` 상태로 응답한다.  
-SSR 요청의 로그인 후 복귀 URL은 서버에서 구성하고,
-API 요청은 브라우저 주소창의 현재 페이지를 기준으로 클라이언트에서 복귀 URL을 구성한다.
+#### 미인증 요청 처리
+
+실행 대상 Handler의 `@RestController`와 `@ResponseBody` 적용 여부를 기준으로
+SSR 요청과 API 요청을 구분하여 처리한다.
+
+##### SSR 요청
+
+- 로그인 페이지로 `302 Found` redirect한다.
+- GET 요청의 복귀 URL은 서버에서 구성하여 로그인 성공 후 원래 요청 화면으로 이동할 수 있도록 한다.
+- 상태 변경 요청에는 복귀 URL을 전달하지 않으며, 로그인 후 홈 화면으로 이동하도록 한다.  
+  이를 통해 기존 상태 변경 요청이 자동으로 다시 실행되는 것을 방지한다.
+
+##### API 요청
+
+- `LOGIN_REQUIRED` 오류 정보를 담은 JSON을 `401 Unauthorized` 상태로 반환한다.
+- 브라우저의 현재 화면을 기준으로 클라이언트에서 복귀 URL을 구성하며, 기존 요청을 자동으로 재실행하지 않는다.
 
 ### `@LoginMemberId` ArgumentResolver
 
@@ -287,21 +309,22 @@ Controller로 전달된 회원 ID를 이용하여
 
 ## SSR / API Exception Handling
 
-예외가 발생한 요청 유형에 따라 HTML 화면과 JSON API의 응답 정책을 분리한다.
+예외가 발생한 요청 유형에 따라 HTML 오류 화면과 JSON 오류 응답 정책을 분리한다.
 
-- `SsrExceptionHandler`
-  - SSR Controller에서 발생한 도메인 및 권한 예외 처리
-  - 기존 HTML 화면 기반 redirect 정책 유지
-  - HTTP 상태 및 전용 오류 화면 정책은 추후 검토
+### SSR 오류 처리
 
-- `ApiExceptionHandler`
-  - API Controller에서 발생한 예외 처리
-  - `ApiErrorCode`와 `ApiErrorResponse` 기반의 일관된 JSON 오류 응답 제공
+- 예상 가능한 요청 형식, 권한 및 리소스 부재 오류를 적절한 HTTP 상태와 HTML 오류 화면으로 처리한다.
+- `400`, `403`, `404`, `500` 전용 화면과 `4xx`, `5xx` 범위별 fallback 화면을 제공한다.
+- 로그인 회원을 찾을 수 없으면 세션을 무효화하고 로그인 화면에서 재로그인을 안내한다.
+- 별도로 처리하지 않은 오류는 Spring 기본 오류 처리 흐름에 위임한다.
 
-요청 형식 오류, Validation 실패, 도메인 및 권한 예외를 공통 처리하여
-각 Controller가 비즈니스 요청과 정상 응답 처리에 집중하도록 구성했다.
+### API 오류 처리
 
-API 오류 응답의 세부 형식과 오류 코드 목록은 [API Specification](./docs/api-specification.md) 문서를 참고한다.
+- `ApiErrorCode`와 `ApiErrorResponse`를 기반으로 일관된 JSON 오류 응답을 제공한다.
+- 요청 형식 오류, Validation 실패, 도메인 및 권한 예외를 정해진 HTTP 상태와 오류 코드로 변환한다.
+
+API 오류 응답의 세부 형식과 오류 코드 목록은
+[API Specification](./docs/api-specification.md) 문서를 참고한다.
 
 ---
 
@@ -425,10 +448,19 @@ Service 테스트에서는 회원, 게시글과 댓글의 상태에 따른 유�
 
 ## 웹 요청 및 API 응답 검증
 
-웹 계층에서는 미인증 SSR 요청과 API 요청이 각각 redirect와 JSON 오류 응답으로 분기되는지 검증한다.
+웹 계층에서는 `@PublicAccess` 기반 공개 요청 판별과
+미인증 SSR/API 요청의 응답 분기를 검증한다.  
+SSR GET 요청에는 로그인 후 복귀 경로가 제공되고,
+상태 변경 요청에는 복귀 경로가 제공되지 않는지도 검증한다.
+
+SSR 예외 처리 테스트에서는 요청 형식 오류, 접근 거부, 리소스 부재가
+정해진 HTTP 상태와 오류 View로 변환되는지 검증한다.  
+로그인 회원을 찾을 수 없는 경우에는 기존 세션이 무효화되고
+재로그인 안내를 위해 로그인 화면으로 이동하는지 확인한다.
 
 API 예외 처리 테스트에서는 잘못된 JSON, 타입 불일치, Validation 실패, 도메인 및 권한 예외가
-정해진 HTTP 상태와 `ApiErrorCode`, 오류 메시지 및 JSON 응답 형식으로 변환되는지 확인한다.  
+정해진 HTTP 상태와 `ApiErrorCode`, 오류 메시지 및 JSON 응답 형식으로 변환되는지 확인한다.
+
 이를 통해 예외 처리 구현뿐 아니라, 서버와 클라이언트 사이의 오류 응답 계약이 유지되는지도 함께 검증한다.
 
 ## 테스트 환경 및 브라우저 검증
@@ -436,11 +468,20 @@ API 예외 처리 테스트에서는 잘못된 JSON, 타입 불일치, Validatio
 개발 환경과 테스트 환경의 데이터베이스를 분리하여
 테스트 실행이 개발 데이터에 영향을 주지 않도록 구성한다.
 
-자동화 테스트 이후에는 브라우저 개발자 도구 등을 활용하여
-댓글의 정상 처리, Validation 실패, 인증 만료, 도메인 및 권한 오류,
-JSON이 아닌 응답과 네트워크 연결 실패까지 확인한다.  
-이를 통해 서버의 응답뿐 아니라, 실제 화면에 표시되는 메시지와 로그인 후 페이지 복귀 등
-클라이언트의 최종 동작도 함께 검증한다.
+자동화 테스트 이후에는 브라우저 개발자 도구와 `curl`을 활용하여
+서버 응답부터 실제 화면에 표시되는 결과까지 확인한다.  
+댓글 기능은 정상적인 조회·작성·수정·삭제뿐 아니라
+Validation 실패, 인증 만료, 도메인 및 권한 오류,
+JSON이 아닌 오류 응답과 네트워크 연결 실패 상황까지 검증한다.
+
+SSR 오류 처리는 `400`, `403`, `404`, `500` 응답과 `4xx`, `5xx` 범위별 fallback이
+각 상태에 맞는 HTML 오류 화면으로 렌더링되는지 확인한다.  
+또한 로그인 세션의 회원 ID와 애플리케이션의 회원 상태가 일치하지 않는 경우,
+기존 세션이 무효화되고 로그인 화면에 재로그인 안내 메시지가 표시되는지 검증한다.
+
+이를 통해 자동화 테스트에서 확인한 서버의 응답 정책이
+실제 브라우저의 화면 렌더링, 오류 메시지 표시 및 로그인 후 이동 과정에서도
+일관되게 동작하는지 최종 확인한다.
 
 ---
 
@@ -482,8 +523,11 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - `LoginMemberIdArgumentResolver`
 - 세션 기반 인증
 - 관리자 권한 정책
+- `@PublicAccess` 기반 공개 요청 판별
 - 미인증 SSR/API 요청의 응답 정책 분리
-- 세션 만료 후 로그인 시 기존 화면 복귀 처리
+- 미인증 SSR GET 요청의 로그인 후 기존 화면 복귀
+- 미인증 SSR 상태 변경 요청의 로그인 후 자동 복귀 방지
+- 로그인 세션 불일치 시 세션 무효화 및 재로그인 안내
 
 ### Board
 
@@ -512,27 +556,14 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ### 공통 인프라
 
-- SSR/API 전용 예외 처리기 분리
-- `ApiErrorCode`와 `ApiErrorResponse` 기반 API 오류 응답 표준화
-- 요청 형식, Validation, 도메인 및 권한 예외 공통 처리
-- 테스트 DB 분리
-- Soft Delete 정책 적용
+- 개발 DB와 테스트 DB 분리
 - `WebConfig` 기반 Interceptor 및 ArgumentResolver 등록
-
----
-
-## 진행 중
-
-### Documentation
-
-- API Specification 문서 추가
-- API 오류 응답 구조와 클라이언트 처리 정책 문서화
-- SSR/API 예외 처리 및 Validation 관련 Architecture Decisions 갱신
-- 세션 만료 Troubleshooting에 후속 오류 응답 표준화 과정 반영
-- README, Domain Design 및 Project Progress 최신화
-- 프로젝트 문서 간 정책·용어·링크 일치 여부 검토
-- 전체 변경 사항 및 테스트 결과 최종 확인
-- 문서 변경 사항 커밋 및 Git 정리
+- Member, Board, Comment에 Soft Delete 정책 적용
+- SSR/API 전용 예외 처리기 분리
+- 요청 형식, 권한 및 리소스 부재에 따른 상태 코드별 SSR 오류 화면 제공
+- `4xx`, `5xx` 범위별 fallback 오류 화면 제공
+- `ApiErrorCode`와 `ApiErrorResponse` 기반 API 오류 응답 표준화
+- API 요청 형식, Validation, 도메인 및 권한 예외 공통 처리
 
 ---
 
@@ -556,6 +587,8 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ### 리팩토링
 
+- API 요청의 로그인 세션 불일치 처리 정책 정비
+- 게시글 조회수 증가 시 쿠키 저장 순서 조정
 - Spring Data JPA Page/Pageable 기반 페이징 리팩토링 검토
 
 ---
