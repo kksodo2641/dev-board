@@ -133,6 +133,8 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - `ApiExceptionHandler` 구현
   - `@RestController` 기반 API 예외 처리
   - 요청 형식, Validation, 도메인, 권한 및 서버 오류 공통 처리
+  - 로그인 세션과 회원 상태 불일치 시 세션 무효화 및
+    `401 Unauthorized`와 `LOGIN_SESSION_INVALIDATED` 오류 코드 응답
   - 처리되지 않은 예외의 내부 정보 비노출 및 서버 로그 기록
 - `ApiErrorCode`와 `ApiErrorResponse` 기반 공통 API 오류 응답 적용
 - HTTP 상태와 애플리케이션 오류 코드를 이용한 오류 식별 기준 적용
@@ -405,7 +407,6 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ##### Global / Member 검토 항목
 
-- API 요청의 로그인 세션 불일치 처리 정책 정비
 - 로그인 `redirectURL`이 애플리케이션 내부 경로인지 검증하는 방안 검토
 - datasource 접속 정보를 환경변수 또는 외부 설정으로 분리
 - 향후 Spring Security 도입 시, 세션 기반 상태 변경 요청의 CSRF 방어 적용 검토

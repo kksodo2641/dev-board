@@ -56,17 +56,17 @@ HTTP 상태와 애플리케이션 오류 코드는 서로 다른 역할을 가�
 
 ## API 오류 코드
 
-|           코드            |           HTTP 상태           | 기본 메시지                  | 주요 발생 상황                  |
-|:-----------------------:|:---------------------------:|:------------------------|:--------------------------|
-|    `INVALID_REQUEST`    |      `400 Bad Request`      | 요청 형식이 올바르지 않습니다.       | JSON 형식 오류 또는 요청 값 타입 불일치 |
-|   `VALIDATION_ERROR`    |      `400 Bad Request`      | 입력값이 올바르지 않습니다.         | Bean Validation 실패        |
-|    `LOGIN_REQUIRED`     |     `401 Unauthorized`      | 로그인이 필요합니다.             | 인증이 필요한 API의 미인증 요청       |
-|     `ACCESS_DENIED`     |       `403 Forbidden`       | 해당 요청을 처리할 권한이 없습니다.    | 요청을 수행할 권한이 없는 경우         |
-|   `MEMBER_NOT_FOUND`    |       `404 Not Found`       | 회원을 찾을 수 없습니다.          | 회원을 찾을 수 없는 경우            |
-|    `BOARD_NOT_FOUND`    |       `404 Not Found`       | 게시글을 찾을 수 없습니다.         | 게시글을 찾을 수 없는 경우           |
-|   `COMMENT_NOT_FOUND`   |       `404 Not Found`       | 댓글을 찾을 수 없습니다.          | 댓글을 찾을 수 없는 경우            |
-|   `REPLY_NOT_ALLOWED`   |       `409 Conflict`        | 해당 댓글에 대댓글을 작성할 수 없습니다. | 대댓글 작성 정책과 충돌하는 경우        |
-| `INTERNAL_SERVER_ERROR` | `500 Internal Server Error` | 서버 오류가 발생했습니다.          | 별도로 처리되지 않은 서버 오류         |
+|             코드              |           HTTP 상태           | 기본 메시지                          | 주요 발생 상황                                             |
+|:---------------------------:|:---------------------------:|:--------------------------------|:-----------------------------------------------------|
+|      `INVALID_REQUEST`      |      `400 Bad Request`      | 요청 형식이 올바르지 않습니다.               | JSON 형식 오류 또는 요청 값 타입 불일치                            |
+|     `VALIDATION_ERROR`      |      `400 Bad Request`      | 입력값이 올바르지 않습니다.                 | Bean Validation 실패                                   |
+|      `LOGIN_REQUIRED`       |     `401 Unauthorized`      | 로그인이 필요합니다.                     | 인증이 필요한 API의 미인증 요청                                  |
+| `LOGIN_SESSION_INVALIDATED` |     `401 Unauthorized`      | 로그인 정보가 유효하지 않습니다. 다시 로그인해 주세요. | 세션의 로그인 회원 ID에 해당하는 `ACTIVE` 회원을 찾을 수 없어 세션을 무효화한 경우 |
+|       `ACCESS_DENIED`       |       `403 Forbidden`       | 해당 요청을 처리할 권한이 없습니다.            | 요청을 수행할 권한이 없는 경우                                    |
+|      `BOARD_NOT_FOUND`      |       `404 Not Found`       | 게시글을 찾을 수 없습니다.                 | 게시글을 찾을 수 없는 경우                                      |
+|     `COMMENT_NOT_FOUND`     |       `404 Not Found`       | 댓글을 찾을 수 없습니다.                  | 댓글을 찾을 수 없는 경우                                       |
+|     `REPLY_NOT_ALLOWED`     |       `409 Conflict`        | 해당 댓글에 대댓글을 작성할 수 없습니다.         | 대댓글 작성 정책과 충돌하는 경우                                   |
+|   `INTERNAL_SERVER_ERROR`   | `500 Internal Server Error` | 서버 오류가 발생했습니다.                  | 별도로 처리되지 않은 서버 오류                                    |
 
 ---
 
@@ -143,7 +143,18 @@ Content-Type: application/json;charset=UTF-8
 - 처음부터 로그인하지 않은 경우
 - 로그인 후 세션이 만료된 경우
 
-클라이언트는 HTTP 상태가 `401 Unauthorized`이고 `code`가 `LOGIN_REQUIRED`인 경우에만 로그인 필요 상황으로 처리한다.
+반면 세션에 로그인 회원 ID는 있지만, 해당 `ACTIVE` 회원을 찾을 수 없으면,
+기존 세션을 무효화하고 다음 오류를 반환한다.
+
+```json
+{
+  "code": "LOGIN_SESSION_INVALIDATED",
+  "message": "로그인 정보가 유효하지 않습니다. 다시 로그인해 주세요."
+}
+```
+
+두 경우 모두 `401 Unauthorized`를 반환하지만,
+클라이언트는 `code`를 기준으로 안내 문구를 구분한 뒤 로그인 페이지로 이동한다.
 
 ---
 
@@ -189,9 +200,11 @@ Content-Type: application/json
 
 현재 댓글 클라이언트는 API 요청에서 다음 기준으로 오류를 처리한다.
 
-- 정상적인 API 오류 응답이면 서버가 반환한 `message`를 사용자에게 표시한다.
-- `401 Unauthorized`와 `LOGIN_REQUIRED`가 함께 반환되면 로그인 페이지로 이동한다.
-- 오류 응답이 JSON 형식이 아니거나 메시지가 없으면 요청별 fallback 메시지를 표시한다.
+- `401 Unauthorized`와 함께 `LOGIN_REQUIRED` 또는 `LOGIN_SESSION_INVALIDATED`가 반환되면,
+  오류 코드별 고정 안내 문구를 표시한 뒤 로그인 페이지로 이동한다.
+- 로그인 이동 시 현재 화면을 복귀 경로로 전달하되, 실패한 API 요청은 자동으로 재실행하지 않는다.
+- 그 외 정상적인 API 오류 응답은 서버가 반환한 `message`를 사용자에게 표시한다.
+- 그 외 오류에서 응답이 JSON 형식이 아니거나 사용할 메시지가 없으면 요청별 fallback 메시지를 표시한다.
 - 네트워크 오류로 응답을 받지 못한 경우에도 요청별 fallback 메시지를 표시한다.
 - 사용자에게는 안내 메시지를 표시하고, 처리 중 발생한 오류는 브라우저 콘솔에 기록한다.
 

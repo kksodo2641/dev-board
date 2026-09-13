@@ -23,14 +23,14 @@ public enum ApiErrorCode {
             "로그인이 필요합니다."
     ),
     
+    LOGIN_SESSION_INVALIDATED(
+            HttpStatus.UNAUTHORIZED,
+            "로그인 정보가 유효하지 않습니다. 다시 로그인해 주세요."
+    ),
+    
     ACCESS_DENIED(
             HttpStatus.FORBIDDEN,
             "해당 요청을 처리할 권한이 없습니다."
-    ),
-    
-    MEMBER_NOT_FOUND(
-            HttpStatus.NOT_FOUND,
-            "회원을 찾을 수 없습니다."
     ),
     
     BOARD_NOT_FOUND(

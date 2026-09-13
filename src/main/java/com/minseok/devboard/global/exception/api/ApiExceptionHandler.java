@@ -5,6 +5,8 @@ import com.minseok.devboard.comment.exception.CommentNotFoundException;
 import com.minseok.devboard.comment.exception.ReplyNotAllowedException;
 import com.minseok.devboard.global.exception.AccessDeniedException;
 import com.minseok.devboard.member.exception.MemberNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -22,7 +24,7 @@ import static com.minseok.devboard.global.exception.api.ApiErrorCode.BOARD_NOT_F
 import static com.minseok.devboard.global.exception.api.ApiErrorCode.COMMENT_NOT_FOUND;
 import static com.minseok.devboard.global.exception.api.ApiErrorCode.INTERNAL_SERVER_ERROR;
 import static com.minseok.devboard.global.exception.api.ApiErrorCode.INVALID_REQUEST;
-import static com.minseok.devboard.global.exception.api.ApiErrorCode.MEMBER_NOT_FOUND;
+import static com.minseok.devboard.global.exception.api.ApiErrorCode.LOGIN_SESSION_INVALIDATED;
 import static com.minseok.devboard.global.exception.api.ApiErrorCode.REPLY_NOT_ALLOWED;
 import static com.minseok.devboard.global.exception.api.ApiErrorCode.VALIDATION_ERROR;
 
@@ -31,8 +33,14 @@ import static com.minseok.devboard.global.exception.api.ApiErrorCode.VALIDATION_
 public class ApiExceptionHandler {
     
     @ExceptionHandler(MemberNotFoundException.class)
-    public ResponseEntity<ApiErrorResponse> handleMemberNotFound() {
-        return createResponse(MEMBER_NOT_FOUND);
+    public ResponseEntity<ApiErrorResponse> handleMemberNotFound(final HttpServletRequest request) {
+        
+        final HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        
+        return createResponse(LOGIN_SESSION_INVALIDATED);
     }
     
     @ExceptionHandler(BoardNotFoundException.class)
