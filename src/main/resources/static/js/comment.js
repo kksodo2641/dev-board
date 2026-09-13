@@ -272,17 +272,23 @@ async function handleApiResponse(response, fallbackMessage) {
         throw new Error(fallbackMessage);
     }
 
-    if (response.status === 401
-            && errorResponse?.code === "LOGIN_REQUIRED") {
-        redirectToLogin();
+    const authenticationMessages = {
+        LOGIN_REQUIRED: "로그인 정보가 만료되었습니다. 다시 로그인해 주세요.",
+        LOGIN_SESSION_INVALIDATED: "로그인 정보가 유효하지 않습니다. 다시 로그인해 주세요."
+    };
+
+    const authenticationMessage = authenticationMessages[errorResponse?.code];
+
+    if (response.status === 401 && authenticationMessage) {
+        redirectToLogin(authenticationMessage);
         return false;
     }
 
     throw new Error(errorResponse?.message || fallbackMessage);
 }
 
-function redirectToLogin() {
-    alert("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
+function redirectToLogin(message) {
+    alert(message);
 
     const redirectURL = window.location.pathname  // 현재 주소 (예: "/boards/15")
                         + window.location.search; // 쿼리 스트링 (예: "?page=2")

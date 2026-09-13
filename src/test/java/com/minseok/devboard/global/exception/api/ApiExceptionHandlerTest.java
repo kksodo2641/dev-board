@@ -3,6 +3,7 @@ package com.minseok.devboard.global.exception.api;
 import com.minseok.devboard.board.exception.BoardNotFoundException;
 import com.minseok.devboard.comment.exception.CommentNotFoundException;
 import com.minseok.devboard.comment.exception.ReplyNotAllowedException;
+import com.minseok.devboard.global.common.SessionConst;
 import com.minseok.devboard.global.exception.AccessDeniedException;
 import com.minseok.devboard.member.exception.MemberNotFoundException;
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -75,6 +77,32 @@ class ApiExceptionHandlerTest {
         
         assertThat(mvcResult.getResolvedException())
                 .isInstanceOf(expectedExceptionType);
+    }
+    
+    @Test
+    @DisplayName("로그인 세션과 회원 상태가 일치하지 않으면 세션을 무효화하고 401 Unauthorized와 LOGIN_SESSION_INVALIDATED를 응답한다.")
+    void invalidateSessionAndReturnUnauthorizedWhenLoginSessionIsInconsistent() throws Exception {
+        // given
+        final MockHttpSession session = new MockHttpSession();
+        session.setAttribute(SessionConst.LOGIN_MEMBER_ID, 1L);
+        
+        final ApiErrorCode expectedErrorCode = ApiErrorCode.LOGIN_SESSION_INVALIDATED;
+        
+        // when & then
+        final MvcResult mvcResult = mockMvc.perform(get("/test/member-not-found")
+                                                            .session(session))
+                                           .andExpect(status().isUnauthorized())
+                                           .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON))
+                                           .andExpect(jsonPath("$.code")
+                                                              .value(expectedErrorCode.getCode()))
+                                           .andExpect(jsonPath("$.message")
+                                                              .value(expectedErrorCode.getMessage()))
+                                           .andReturn();
+        
+        assertThat(session.isInvalid()).isTrue();
+        
+        assertThat(mvcResult.getResolvedException())
+                .isInstanceOf(MemberNotFoundException.class);
     }
     
     @Test
@@ -209,12 +237,6 @@ class ApiExceptionHandlerTest {
     
     private static Stream<Arguments> mappedExceptionCases() {
         return Stream.of(
-                Arguments.of(
-                        "/test/member-not-found",
-                        NOT_FOUND.value(),
-                        ApiErrorCode.MEMBER_NOT_FOUND,
-                        MemberNotFoundException.class,
-                        "MemberNotFoundException"),
                 Arguments.of(
                         "/test/board-not-found",
                         NOT_FOUND.value(),
