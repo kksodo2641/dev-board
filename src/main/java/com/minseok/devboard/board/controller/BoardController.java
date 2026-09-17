@@ -202,13 +202,13 @@ public class BoardController {
             cookieValue = (viewedBoardsOrNull + VIEWED_BOARDS_SEPARATOR + boardId);
         }
         
+        boardService.increaseViewCount(boardId);
+        
         final Cookie cookie = new Cookie(VIEWED_BOARDS_COOKIE, cookieValue);
         cookie.setMaxAge(VIEW_COOKIE_MAX_AGE);
         cookie.setPath("/boards"); // 게시판(Board) 기능 전용
         
         response.addCookie(cookie);
-        
-        boardService.increaseViewCount(boardId);
     }
     
     private static String resolveView(final String viewName) {
