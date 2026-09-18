@@ -377,7 +377,7 @@ GET /unknown
 로그인 후 `/boards/abc`로 복귀하면 그때서야 Path Variable 타입 변환에 실패하여
 `400 Bad Request`가 발생했다.
 
-### 예상 동작
+### 기대 동작
 
 두 요청은 로그인 여부와 관계없이 다음과 같이 처리되어야 한다.
 
@@ -632,6 +632,167 @@ URI 구조와 인증 정책의 결합을 줄이고, 코드에서 요청의 공�
 또한 공개 여부가 명확하지 않은 Handler는 자동으로 허용하지 않는 기본 비공개 정책을 유지했다.  
 이를 통해 필요한 요청만 명시적으로 공개하면서도
 Spring MVC의 정상적인 요청 검증과 오류 처리 과정이 실행될 수 있도록 인증 경계를 구성했다.
+
+---
+
+## 3. 게시글 조회수 증가 실패 응답에 조회 기록 Cookie가 저장되는 문제
+
+### 상태
+
+해결 완료
+
+### 문제 발견 배경
+
+게시글 상세 조회에서는 동일한 사용 환경에서 24시간 동안 조회수가 중복 증가하지 않도록,
+조회한 게시글 ID를 `viewedBoards` Cookie에 저장한다.
+
+조회수 처리 흐름을 검토하던 중 존재하지 않거나 삭제된 게시글처럼
+조회수 증가에 실패하는 요청에서도 조회 기록 Cookie가 응답에 추가될 수 있음을 확인했다.  
+이 경우 게시글 상세 화면은 조회할 수 없지만,
+브라우저에서는 해당 게시글을 정상적으로 조회한 것처럼 기록이 남아
+조회수 증가 결과와 Cookie 상태가 일치하지 않게 된다.
+
+### 재현 환경 및 조건
+
+Cookie에 기록되지 않은 존재하지 않는 게시글 ID(예: `Long.MAX_VALUE`)로 상세 조회를 요청했다.
+
+```text
+curl -i http://localhost:8080/boards/9223372036854775807
+```
+
+응답은 `404 Not Found`였지만, 존재하지 않는 게시글 ID를 담은 `Set-Cookie` 헤더가 함께 반환됐다.
+
+```text
+HTTP/1.1 404
+Set-Cookie: viewedBoards=9223372036854775807;
+            Max-Age=86400;
+            Path=/boards
+```
+
+브라우저에서도 동일한 요청을 실행한 결과, 404 오류 화면이 표시됐지만
+`viewedBoards` Cookie에는 해당 ID가 실제로 저장됐다.
+
+### 기대 동작
+
+존재하지 않거나 삭제된 게시글은 정상적인 상세 조회 대상이 아니므로,
+조회수와 조회 기록 Cookie가 모두 변경되지 않아야 한다.
+
+```text
+ACTIVE 게시글 첫 조회
+→ 조회수 증가
+→ 조회 기록 Cookie 추가
+→ 상세 화면 응답
+
+존재하지 않거나 삭제된 게시글 조회
+→ 조회수 증가 실패
+→ 조회 기록 Cookie 추가 안 함
+→ 404 Not Found
+```
+
+### 원인 분석
+
+`BoardController`의 `increaseViewCountIfNeeded()`는 새로운 조회 기록을 담은 Cookie를
+응답에 먼저 추가한 뒤 `BoardService`에 조회수 증가를 요청하고 있었다.
+
+```java
+private void increaseViewCountIfNeeded(...) {
+    // ...
+    response.addCookie(cookie);
+    // ...
+    boardService.increaseViewCount(boardId);
+}
+```
+
+`increaseViewCount()`는 `ACTIVE` 게시글을 조회하고,
+존재하지 않거나 삭제된 게시글이면 `BoardNotFoundException`을 발생시킨다.
+
+```text
+response.addCookie()
+→ boardService.increaseViewCount()
+→ ACTIVE 게시글 조회 실패
+→ BoardNotFoundException
+→ SsrExceptionHandler에서 404 오류 화면 반환
+```
+
+`response.addCookie()`가 먼저 실행되면서 `Set-Cookie` 헤더가 응답에 등록됐다.  
+이후 예외 처리기가 404 상태 및 오류 화면을 반환하더라도,
+앞서 등록된 Cookie가 자동으로 취소되는 것은 아니다.
+
+따라서 실제 조회수는 증가되지 않았지만, 브라우저에는 해당 게시글을 조회한 것처럼 Cookie가 저장됐다.
+
+### 해결 과정 및 설계 결정
+
+조회수 증가가 성공한 경우에만 조회 기록 Cookie를 응답에 추가하도록 두 작업의 실행 순서를 변경했다.
+
+```java
+private void increaseViewCountIfNeeded(...) {
+    // ...
+    boardService.increaseViewCount(boardId);
+    // ...
+    response.addCookie(cookie);
+}
+```
+
+수정 후 처리 흐름은 다음과 같다.
+
+```text
+조회 기록 Cookie 값 계산
+→ ACTIVE 게시글 조회 및 조회수 증가
+→ 성공한 경우에만 Cookie를 응답에 추가
+```
+
+존재하지 않거나 삭제된 게시글이면 `increaseViewCount()`에서
+`BoardNotFoundException`이 발생하므로 `response.addCookie()`까지 실행되지 않는다.
+
+수정 후에는 조회수 증가가 성공한 뒤 Cookie 객체를 생성하고,
+`response.addCookie()`를 호출하여 실제 HTTP 응답에 조회 기록을 반영한다.  
+이를 통해 조회수 증가 결과와 HTTP 응답의 조회 기록이 일치하도록 했다.
+
+### 최종 해결 내용
+
+게시글 조회수 증가 성공을 조회 기록 Cookie 저장의 기준으로 정했다.
+
+|       요청 조건       | 조회수 | 조회 기록 Cookie |       응답        |
+|:-----------------:|:---:|:------------:|:---------------:|
+|  ACTIVE 게시글 첫 조회  | 증가  |      추가      |    `200 OK`     |
+| 이미 조회한 ACTIVE 게시글 | 유지  |  새로 추가하지 않음  |    `200 OK`     |
+|    존재하지 않는 게시글    | 유지  |   추가하지 않음    | `404 Not Found` |
+|      삭제된 게시글      | 유지  |   추가하지 않음    | `404 Not Found` |
+
+Controller는 기존과 같이 Cookie를 처리하고,
+Service는 `ACTIVE` 게시글 검증과 조회수 증가만 담당한다.  
+계층 간 책임은 유지하면서 호출 순서만 조정하여 문제 범위를 최소화했다.
+
+### 테스트 및 재검증
+
+`BoardControllerTest` 통합 테스트를 추가하여
+실제 Spring MVC, Service, Repository 및 테스트 DB 흐름에서 다음 동작을 검증했다.
+
+- `ACTIVE` 게시글 첫 조회 시 조회수가 증가하고, 조회 기록 Cookie가 응답에 추가되는지 확인
+- Cookie의 게시글 ID, 24시간 유효기간 및 `/boards` 경로 확인
+- 존재하지 않는 게시글의 404 응답에 조회 기록 Cookie가 추가되지 않았는지 확인
+- 삭제된 게시글의 404 응답에 조회 기록 Cookie가 추가되지 않았는지 확인
+
+수정 전과 동일한 `curl` 요청으로 수동 재검증한 결과,
+404 상태 및 오류 화면은 그대로 유지하면서 `Set-Cookie` 헤더가 더 이상 반환되지 않는 것을 확인했다.
+
+```text
+HTTP/1.1 404
+Content-Type: text/html;charset=UTF-8
+```
+
+### 회고
+
+Cookie 추가처럼 HTTP 응답을 변경하는 작업도
+실행 시점에 따라 시스템 상태의 정합성에 영향을 줄 수 있는 부수 효과이다.
+
+실패할 수 있는 비즈니스 작업보다 응답 변경을 먼저 수행하게 되면,
+이후 예외가 적절한 오류 응답으로 처리되더라도 앞서 적용한 응답 헤더가 그대로 남을 수 있다.  
+따라서 비즈니스 작업의 성공을 전제로 하는 응답 변경은
+성공 여부가 확인된 뒤 수행해야 한다.
+
+이번 수정에서는 조회수가 정상적으로 증가한 경우에만 조회 기록 Cookie를 응답에 추가하도록 처리 순서를 변경했다.  
+또한 정상·실패 경로를 Controller 통합 테스트로 함께 검증하여 동일한 처리 순서 문제가 다시 발생하지 않도록 했다.
 
 ---
 

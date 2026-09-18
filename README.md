@@ -588,7 +588,6 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ### 리팩토링
 
-- 게시글 조회수 증가 시 쿠키 저장 순서 조정
 - Spring Data JPA Page/Pageable 기반 페이징 리팩토링 검토
 
 ---
