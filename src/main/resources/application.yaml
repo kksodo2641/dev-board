@@ -5,9 +5,9 @@ spring:
     name: dev-board
 
   datasource:
-    url: jdbc:mysql://localhost:3306/dev_board
-    username: user_minseok
-    password: 1234
+    url: ${DEV_BOARD_DB_URL}
+    username: ${DEV_BOARD_DB_USERNAME}
+    password: ${DEV_BOARD_DB_PASSWORD}
 
   jpa:
     open-in-view: false
