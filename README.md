@@ -53,6 +53,41 @@ Dev Board는 개발자들이 게시글과 댓글을 통해 자유롭게 정보�
 
 ---
 
+# 로컬 실행 환경
+
+Dev Board의 로컬 실행에는 Java 21과 MySQL 8.x가 필요하다.
+
+테스트 실행이 개발 데이터에 영향을 주지 않도록
+개발용 데이터베이스와 테스트용 데이터베이스를 분리한다.
+
+| 데이터베이스           | 용도                   |
+|------------------|----------------------|
+| `dev_board`      | 일반 애플리케이션의 개발 데이터 저장 |
+| `dev_board_test` | 통합 테스트 데이터 저장        |
+
+애플리케이션은 Hibernate의 `ddl-auto: validate` 설정을 사용하므로
+실행 전에 새로 생성한 두 데이터베이스에 `sql/schema.sql`을 적용해야 한다.
+
+datasource 접속 정보는 소스 코드에 저장하지 않고
+실행 환경에서 다음 환경변수로 전달한다.
+
+| 환경  | 환경변수                         |
+|:---:|------------------------------|
+| 개발  | `DEV_BOARD_DB_URL`           |
+| 개발  | `DEV_BOARD_DB_USERNAME`      |
+| 개발  | `DEV_BOARD_DB_PASSWORD`      |
+| 테스트 | `DEV_BOARD_TEST_DB_URL`      |
+| 테스트 | `DEV_BOARD_TEST_DB_USERNAME` |
+| 테스트 | `DEV_BOARD_TEST_DB_PASSWORD` |
+
+환경변수에는 기본값을 제공하지 않으며,
+필수 값이 누락되면 애플리케이션 또는 통합 테스트가 시작 단계에서 실패한다.
+
+데이터베이스 준비, IntelliJ 실행 구성 및 Git Bash 테스트 방법은
+[Local Development Setup](./docs/local-development-setup.md)에서 확인할 수 있다.
+
+---
+
 # 구현 기능
 
 ## Member
@@ -610,6 +645,9 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 - [Database Design](./docs/database-design.md)
   - 데이터베이스 스키마, 관계 및 ERD 정의
+
+- [Local Development Setup](./docs/local-development-setup.md)
+  - 로컬 데이터베이스, datasource 환경변수 및 실행 환경 설정
 
 - [API Specification](./docs/api-specification.md)
   - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세

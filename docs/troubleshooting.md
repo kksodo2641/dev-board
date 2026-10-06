@@ -971,6 +971,9 @@ path가 `/example.com`으로 해석될 수 있으므로 원본 문자열의 시�
 - [Database Design](./database-design.md)
   - 데이터베이스 스키마, 관계 및 ERD 정의
 
+- [Local Development Setup](./local-development-setup.md)
+  - 로컬 데이터베이스, datasource 환경변수 및 실행 환경 설정
+
 - [Architecture Decisions](./architecture-decisions.md)
   - 주요 아키텍처 설계 의사결정 기록
 

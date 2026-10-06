@@ -286,6 +286,9 @@ COMMENT.status : ACTIVE → DELETED
 - [Domain Design](./domain-design.md)
   - 도메인 모델 및 비즈니스 규칙 정의
 
+- [Local Development Setup](./local-development-setup.md)
+  - 로컬 데이터베이스, datasource 환경변수 및 실행 환경 설정
+
 - [API Specification](./api-specification.md)
   - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세
 
