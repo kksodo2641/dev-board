@@ -45,7 +45,13 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - `BaseTimeEntity` 구현
 - JPA Auditing 적용
 - `dev_board_test` 테스트 전용 데이터베이스 생성
-- 테스트 전용 데이터베이스 환경 분리
+- 환경변수를 통한 개발용 및 테스트용 datasource 접속 정보 외부화
+  - 개발용과 테스트용 환경변수 이름 분리
+  - Git 이력에 기록된 기존 DB 비밀번호 변경
+- 데이터베이스를 사용하는 통합 테스트에 `test` 프로필 적용
+- `@Sql` 기반 테스트 관리자 fixture 자동 준비
+  - 관리자 데이터의 `ADMIN`, `ACTIVE` 상태 보장
+  - 테스트 트랜잭션 rollback을 통한 fixture 데이터 격리
 
 ---
 
@@ -54,6 +60,7 @@ Dev Board는 다음 순서로 기능을 구현한다.
 - README 작성
 - Domain Design 작성
 - Database Design 작성
+- Local Development Setup 작성 및 관리
 - API Specification 작성 및 관리
 - Project Progress 작성 및 관리
 - Architecture Decisions 작성 및 관리
@@ -413,7 +420,6 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 ##### Global / Member 검토 항목
 
-- datasource 접속 정보를 환경변수 또는 외부 설정으로 분리
 - 향후 Spring Security 도입 시, 세션 기반 상태 변경 요청의 CSRF 방어 적용 검토
 
 ##### Comment 검토 항목
@@ -444,6 +450,9 @@ Dev Board는 다음 순서로 기능을 구현한다.
 
 - [Database Design](./database-design.md)
   - 데이터베이스 스키마, 관계 및 ERD 정의
+
+- [Local Development Setup](./local-development-setup.md)
+  - 로컬 데이터베이스, datasource 환경변수 및 실행 환경 설정
 
 - [API Specification](./api-specification.md)
   - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세

@@ -4,11 +4,13 @@ import com.minseok.devboard.member.repository.MemberRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @SpringBootTest
 @ActiveProfiles("test")
+@Sql("/test-admin.sql")
 public abstract class IntegrationTest {
     
     protected static final String ADMIN_EMAIL = "testAdmin@devboard.com";

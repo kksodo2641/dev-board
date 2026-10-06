@@ -540,6 +540,9 @@ Member와 Board 사이에 발생하는 다대다 관계는 BoardLike를 중간 �
 - [Database Design](./database-design.md)
   - 데이터베이스 스키마, 관계 및 ERD 정의
 
+- [Local Development Setup](./local-development-setup.md)
+  - 로컬 데이터베이스, datasource 환경변수 및 실행 환경 설정
+
 - [API Specification](./api-specification.md)
   - JSON API의 공통 요청·응답 규칙 및 오류 코드 명세
 
