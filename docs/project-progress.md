@@ -79,7 +79,8 @@ Dev Board는 다음 순서로 기능을 구현한다.
   - `@RestController` 및 `@ResponseBody` 기반 API 요청 판별
   - 오류 dispatch 경로인 `/error`를 Interceptor 적용 대상에서 제외
 - `LoginMemberIdArgumentResolver` 등록
-- Spring Boot DevTools를 개발 환경 전용 의존성으로 분리
+- Spring Boot DevTools와 p6spy를 개발 환경 전용 의존성으로 분리
+  - 테스트 런타임 및 실행 JAR에서 p6spy 관련 의존성 제외
 
 ---
 
